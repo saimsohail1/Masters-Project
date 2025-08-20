@@ -1,69 +1,32 @@
+# api/routes/tryon.py
 from fastapi import APIRouter, UploadFile, File
 from fastapi.responses import JSONResponse
-from api.services.yolo_service import detect_objects
-from api.services.mediapipe_service import detect_face_landmarks
-from api.utils.file_utils import save_upload_file
-from api.utils.image_drawer import draw_yolo_boxes, draw_landmarks
-from api.utils.file_utils import place_accessory_on_face
-
-import cv2
-import os
+import base64, numpy as np, cv2, os
+from api.services.mediapipe_service import detect_face_landmarks_from_array
+from api.utils.file_utils import place_accessory_on_face  # using your updated function
 
 router = APIRouter()
 
-UPLOAD_FOLDER = "uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-@router.post("/detect")
-async def detect_image(file: UploadFile = File(...)):
-    file_path = save_upload_file(file, UPLOAD_FOLDER)
-
+@router.post("/tryon/frame")
+async def tryon_single_frame(file: UploadFile = File(...)):
     try:
-        # Detect objects and face landmarks
-        yolo_result = detect_objects(file_path)
-        landmarks = detect_face_landmarks(file_path)
+        data = await file.read()
+        np_img = np.frombuffer(data, np.uint8)
+        frame = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
+        if frame is None:
+            return JSONResponse(status_code=400, content={"error": "Invalid image"})
 
-        # Annotate image with bounding boxes and landmarks
-        annotated_img = draw_yolo_boxes(file_path, yolo_result)
-        annotated_img = draw_landmarks(annotated_img, landmarks)
-
-        annotated_path = file_path.replace(".jpg", "_annotated.jpg")
-        cv2.imwrite(annotated_path, annotated_img)
-
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
-
-    return {
-        "yolo_detections": yolo_result,
-        "face_landmarks": landmarks,
-        "annotated_image_path": annotated_path
-    }
-
-
-@router.post("/tryon")
-async def tryon_virtual_item(file: UploadFile = File(...)):
-    file_path = save_upload_file(file, UPLOAD_FOLDER)
-
-    try:
-        # Load image and detect face landmarks
-        image = cv2.imread(file_path)
-        landmarks = detect_face_landmarks(file_path)
-
+        landmarks = detect_face_landmarks_from_array(frame)
         if not landmarks:
-            return JSONResponse(status_code=400, content={"error": "No face landmarks detected"})
+            # Return original frame to keep stream going, but note no face
+            _, buf = cv2.imencode(".jpg", frame)
+            return {"image_base64": base64.b64encode(buf).decode("utf-8"), "note": "no_face"}
 
-        # Overlay accessory using a specific landmark as anchor
-        # Index 6 is commonly near the left eye (you can tweak it)
-        accessory_path = "accessories/glasses.png"
-        output_img = place_accessory_on_face(image, accessory_path, landmarks)
+        # overlay glasses centered between eyes (function already updated to use indices 33 & 263)
+        out = place_accessory_on_face(frame, "accessories/glasses.png", landmarks)
 
-        output_path = file_path.replace(".jpg", "_tryon.jpg")
-        cv2.imwrite(output_path, output_img)
-
+        _, buf = cv2.imencode(".jpg", out)
+        b64 = base64.b64encode(buf).decode("utf-8")
+        return {"image_base64": b64}
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
-
-    return {
-        "message": "Try-on successful",
-        "tryon_image_path": output_path
-    }
