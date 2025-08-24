@@ -1,0 +1,13 @@
+[
+    {
+      "id": "glasses-001",
+      "name": "Wayfarer – Black",
+      "category": "glasses",
+      "price": 79,
+      "images": [
+        { "thumb": "/img/wayfarer-black.jpg", "large": "/img/wayfarer-black.jpg" }
+      ],
+      "assetPngPath": "glasses.png"
+    }
+  ]
+  
