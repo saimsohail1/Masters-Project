@@ -52,10 +52,13 @@ const TryOnProducts = () => {
     }
   ];
 
-  const handleTryOn = (productId: number) => {
-    console.log(`Starting AR try-on for product ${productId}`);
-    // Navigate to the VirtualTryOn component
-    navigate('/virtual-tryon');
+  const handleTryOn = (productId: number, type: 'single' | 'stream') => {
+    console.log(`Starting AR try-on for product ${productId} with type ${type}`);
+    if (type === 'stream') {
+      navigate('/tryon-stream');
+    } else {
+      navigate('/virtual-tryon');
+    }
   };
 
   return (
@@ -134,17 +137,26 @@ const TryOnProducts = () => {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="flex space-x-3">
-                    <button
-                      onClick={() => handleTryOn(product.id)}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition duration-300 transform hover:scale-105"
-                    >
-                      Try On AR
-                    </button>
-                    <button className="px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-300">
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="space-y-3">
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleTryOn(product.id, 'single')}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-3 rounded-lg transition duration-300 transform hover:scale-105 text-sm"
+                      >
+                        Single Shot
+                      </button>
+                      <button
+                        onClick={() => handleTryOn(product.id, 'stream')}
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-3 rounded-lg transition duration-300 transform hover:scale-105 text-sm"
+                      >
+                        Live Stream
+                      </button>
+                    </div>
+                    <button className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-300 flex items-center justify-center">
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
                       </svg>
+                      Wishlist
                     </button>
                   </div>
                 </div>

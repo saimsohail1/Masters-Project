@@ -3,6 +3,7 @@ import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import TryOnProducts from './pages/TryOnProducts';
 import VirtualTryOn from './components/VirtualTryOn';
+import TryOnStream from './components/TryOnStream';
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/try-on" element={<TryOnProducts />} />
           <Route path="/virtual-tryon" element={<VirtualTryOn />} />
+          <Route path="/tryon-stream" element={<TryOnStream />} />
         </Routes>
       </div>
     </Router>
