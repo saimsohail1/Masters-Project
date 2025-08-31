@@ -1,3 +1,6 @@
+<<<<<<< HEAD
+ 
+=======
 import React, { useRef, useState } from "react";
 import Webcam from "react-webcam";
 
@@ -135,4 +138,5 @@ const VirtualTryOn = () => {
   );
 };
 
-export default VirtualTryOn; 
+export default VirtualTryOn;
+>>>>>>> 2c2229392439d724fd2173100e742129bea60f1f

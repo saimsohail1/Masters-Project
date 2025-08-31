@@ -154,4 +154,8 @@ export default function TryOnStream() {
       </div>
     </div>
   );
+<<<<<<< HEAD
 } 
+=======
+}
+>>>>>>> 2c2229392439d724fd2173100e742129bea60f1f
