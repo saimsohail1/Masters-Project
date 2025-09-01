@@ -11,7 +11,7 @@ export default function TryOnStream() {
     (async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user", width: 480, height: 480 },
+          video: { facingMode: "user", width: 640, height: 640 },
           audio: false
         });
         if (videoRef.current) videoRef.current.srcObject = stream;
@@ -29,8 +29,8 @@ export default function TryOnStream() {
         const canvas = canvasRef.current;
         if (!video || !canvas || video.readyState !== 4) return;
 
-        // draw current frame to canvas at a smaller size for speed
-        const W = 480, H = 480;
+        // draw current frame to canvas at a larger size for better quality
+        const W = 640, H = 640;
         canvas.width = W;
         canvas.height = H;
         const ctx = canvas.getContext("2d");
@@ -62,53 +62,53 @@ export default function TryOnStream() {
   }, [running]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
+      <div className="w-full">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+          <h1 className="text-5xl font-bold text-gray-900 dark:text-white mb-4">
             Live Try-On Stream
           </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-300">
+          <p className="text-2xl text-gray-600 dark:text-gray-300">
             Real-time glasses try-on with continuous processing
           </p>
         </div>
 
         {/* Main Content */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             {/* Live Video Feed */}
             <div className="text-center">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
                 Live Camera Feed
               </h3>
               <video 
                 ref={videoRef} 
                 autoPlay 
                 playsInline 
-                className="w-full max-w-sm mx-auto rounded-lg border-2 border-gray-300 dark:border-gray-600" 
+                className="w-full max-w-lg mx-auto rounded-xl border-4 border-gray-300 dark:border-gray-600 shadow-lg" 
               />
               <canvas ref={canvasRef} className="hidden" />
 
               {/* Controls */}
-              <div className="flex justify-center gap-4 mt-4">
+              <div className="flex justify-center gap-6 mt-6">
                 <button 
                   onClick={() => setRunning(true)}
-                  className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg transition duration-300"
+                  className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-8 rounded-xl transition duration-300 text-lg"
                 >
-                  Start
+                  Start Processing
                 </button>
                 <button 
                   onClick={() => setRunning(false)}
-                  className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg transition duration-300"
+                  className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-8 rounded-xl transition duration-300 text-lg"
                 >
-                  Stop
+                  Stop Processing
                 </button>
               </div>
 
               {/* Status Messages */}
               {note === "no_face" && (
-                <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+                <div className="mt-6 p-4 bg-red-100 border-2 border-red-400 text-red-700 rounded-xl text-lg">
                   No face detected—move closer / better lighting.
                 </div>
               )}
@@ -116,20 +116,20 @@ export default function TryOnStream() {
 
             {/* Processed Output */}
             <div className="text-center">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              <h3 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">
                 Processed Output
               </h3>
               {outSrc ? (
                 <img 
                   src={outSrc} 
                   alt="Try-On" 
-                  className="w-full max-w-sm mx-auto rounded-lg border-2 border-gray-300 dark:border-gray-600" 
+                  className="w-full max-w-lg mx-auto rounded-xl border-4 border-gray-300 dark:border-gray-600 shadow-lg" 
                 />
               ) : (
-                <div className="w-full max-w-sm mx-auto h-64 bg-gray-200 dark:bg-gray-700 rounded-lg border-2 border-gray-300 dark:border-gray-600 flex items-center justify-center">
+                <div className="w-full max-w-lg mx-auto h-96 bg-gray-200 dark:bg-gray-700 rounded-xl border-4 border-gray-300 dark:border-gray-600 flex items-center justify-center shadow-lg">
                   <div className="text-center">
-                    <div className="text-4xl mb-2">🔄</div>
-                    <p className="text-gray-600 dark:text-gray-400">Waiting for processed frames...</p>
+                    <div className="text-6xl mb-4">🔄</div>
+                    <p className="text-xl text-gray-600 dark:text-gray-400">Waiting for processed frames...</p>
                   </div>
                 </div>
               )}
@@ -137,25 +137,21 @@ export default function TryOnStream() {
           </div>
 
           {/* Instructions */}
-          <div className="mt-8 bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-4">
+          <div className="mt-12 bg-blue-50 dark:bg-blue-900/20 rounded-xl p-8">
+            <h3 className="text-2xl font-semibold text-blue-900 dark:text-blue-100 mb-6">
               How to Use Live Try-On:
             </h3>
-            <ol className="list-decimal list-inside space-y-2 text-blue-800 dark:text-blue-200">
+            <ol className="list-decimal list-inside space-y-3 text-blue-800 dark:text-blue-200 text-lg">
               <li>Allow camera access when prompted</li>
               <li>Position your face in the camera view</li>
-              <li>Click "Start" to begin real-time processing</li>
+              <li>Click "Start Processing" to begin real-time processing</li>
               <li>The system will continuously process frames at ~5 FPS</li>
               <li>Processed frames with glasses overlay will appear on the right</li>
-              <li>Click "Stop" to pause processing</li>
+              <li>Click "Stop Processing" to pause processing</li>
             </ol>
           </div>
         </div>
       </div>
     </div>
   );
-<<<<<<< HEAD
-} 
-=======
 }
->>>>>>> 2c2229392439d724fd2173100e742129bea60f1f

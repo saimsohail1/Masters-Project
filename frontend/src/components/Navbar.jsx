@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import logoImage from '../images/logo.png';
 
 const Navbar = () => {
@@ -40,41 +41,36 @@ const Navbar = () => {
 
           <div className="flex items-center space-x-16">
             <div className="shrink-0">
-              <a href="#" title="Fashion Retailer" className="flex items-center">
+              <Link to="/" title="Fashion Retailer" className="flex items-center">
                 {/* Logo Image */}
                 <img 
                   src={logoImage} 
                   alt="Fashion Retailer Logo" 
                   className="w-56 h-56 object-contain"
                 />
-              </a>
+              </Link>
             </div>
 
             <ul className="hidden lg:flex items-center justify-start gap-12 md:gap-14 py-6 sm:justify-center">
               <li>
-                <a href="#" title="" className="flex text-2xl font-semibold text-gray-900 hover:text-primary-700 dark:text-white dark:hover:text-primary-500">
+                <Link to="/" title="" className="flex text-2xl font-semibold text-gray-900 hover:text-primary-700 dark:text-white dark:hover:text-primary-500">
                   Home
-                </a>
+                </Link>
               </li>
               <li className="shrink-0">
-                <a href="#" title="" className="flex text-2xl font-semibold text-gray-900 hover:text-primary-700 dark:text-white dark:hover:text-primary-500">
-                  His
-                </a>
+                <Link to="/try-on" title="" className="flex text-2xl font-semibold text-gray-900 hover:text-primary-700 dark:text-white dark:hover:text-primary-500">
+                  Accessories
+                </Link>
               </li>
               <li className="shrink-0">
-                <a href="#" title="" className="flex text-2xl font-semibold text-gray-900 hover:text-primary-700 dark:text-white dark:hover:text-primary-500">
-                  Her
-                </a>
-              </li>
-              <li className="shrink-0">
-                <a href="#" title="" className="text-2xl font-semibold text-gray-900 hover:text-primary-700 dark:text-white dark:hover:text-primary-500">
+                <Link to="/try-on" title="" className="text-2xl font-semibold text-gray-900 hover:text-primary-700 dark:text-white dark:hover:text-primary-500">
                   New In
-                </a>
+                </Link>
               </li>
               <li className="shrink-0">
-                <a href="#" title="" className="text-2xl font-semibold text-gray-900 hover:text-primary-700 dark:text-white dark:hover:text-primary-500">
+                <Link to="/" title="" className="text-2xl font-semibold text-gray-900 hover:text-primary-700 dark:text-white dark:hover:text-primary-500">
                   About
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
@@ -192,19 +188,16 @@ const Navbar = () => {
           <div className="bg-gray-200 dark:bg-gray-700 dark:border-gray-600 border border-gray-300 rounded-lg py-6 px-8 mt-6">
             <ul className="text-gray-900 dark:text-white text-2xl font-semibold dark:text-white space-y-6">
               <li>
-                <a href="#" className="hover:text-primary-700 dark:hover:text-primary-500">Home</a>
+                <Link to="/" className="hover:text-primary-700 dark:hover:text-primary-500">Home</Link>
               </li>
               <li>
-                <a href="#" className="hover:text-primary-700 dark:hover:text-primary-500">His</a>
+                <Link to="/try-on" className="hover:text-primary-700 dark:hover:text-primary-500">Accessories</Link>
               </li>
               <li>
-                <a href="#" className="hover:text-primary-700 dark:hover:text-primary-500">Her</a>
+                <Link to="/try-on" className="hover:text-primary-700 dark:hover:text-primary-500">New In</Link>
               </li>
               <li>
-                <a href="#" className="hover:text-primary-700 dark:hover:text-primary-500">New In</a>
-              </li>
-              <li>
-                <a href="#" className="hover:text-primary-700 dark:hover:text-primary-500">About</a>
+                <Link to="/" className="hover:text-primary-700 dark:hover:text-primary-500">About</Link>
               </li>
             </ul>
           </div>
