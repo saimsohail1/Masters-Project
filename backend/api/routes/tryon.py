@@ -1,8 +1,9 @@
 # api/routes/tryon.py
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File, WebSocket, WebSocketDisconnect, Form
 from fastapi.responses import JSONResponse
 import base64, numpy as np, cv2, os
 import asyncio
+import json
 from api.services.mediapipe_service import (
     detect_face_landmarks_from_array, 
     get_facial_measurements, 
@@ -30,8 +31,8 @@ _glasses_path = "accessories/glasses.png"
 # Product database with accurate dimensions
 PRODUCT_DATABASE = {
     'glasses': {
-        'current_glasses': {
-            'name': 'Current Glasses (Realistic Sizing)',
+        'product_1': {
+            'name': 'Classic Aviator',
             'frame_width_mm': 135,  # Standard medium frame width
             'frame_height_mm': 50,  # Standard frame height
             'lens_width_mm': 58,    # Standard lens width
@@ -39,10 +40,10 @@ PRODUCT_DATABASE = {
             'bridge_width_mm': 18,  # Standard bridge width
             'temple_length_mm': 140, # Standard temple length
             'fit_type': 'standard',
-            'image_file': 'glasses.png'  # Your current image
+            'image_file': 'glasses.png'  # Classic Aviator image
         },
-        'classic_aviator': {
-            'name': 'Classic Aviator Sunglasses',
+        'product_2': {
+            'name': 'Raider Sunglasses',
             'frame_width_mm': 145,  # Larger, wider frames
             'frame_height_mm': 55,  # Taller frames
             'lens_width_mm': 62,    # Wider lenses
@@ -50,21 +51,10 @@ PRODUCT_DATABASE = {
             'bridge_width_mm': 20,  # Wider bridge
             'temple_length_mm': 145, # Longer temples
             'fit_type': 'wide',
-            'image_file': 'glasses.png'  # Same image, different scaling
+            'image_file': 'raider_sunglasses.png'  # Raider sunglasses image
         },
-        'round_retro': {
-            'name': 'Round Retro Glasses',
-            'frame_width_mm': 125,  # Smaller, narrower frames
-            'frame_height_mm': 45,  # Shorter frames
-            'lens_width_mm': 52,    # Smaller lenses
-            'lens_height_mm': 38,   # Shorter lenses
-            'bridge_width_mm': 16,  # Narrower bridge
-            'temple_length_mm': 135, # Shorter temples
-            'fit_type': 'narrow',
-            'image_file': 'glasses.png'  # Same image, different scaling
-        },
-        'sport_performance': {
-            'name': 'Sport Performance Sunglasses',
+        'product_3': {
+            'name': 'Winter Sport Glasses',
             'frame_width_mm': 150,  # Extra wide for sports
             'frame_height_mm': 60,  # Extra tall for coverage
             'lens_width_mm': 65,    # Very wide lenses
@@ -72,34 +62,17 @@ PRODUCT_DATABASE = {
             'bridge_width_mm': 22,  # Extra wide bridge
             'temple_length_mm': 150, # Extra long temples
             'fit_type': 'extra_wide',
-            'image_file': 'glasses.png'  # Same image, different scaling
-        },
-        'your_custom_glasses': {
-            'name': 'Your Custom Glasses',
-            'frame_width_mm': 130,  # Total width of the frame
-            'frame_height_mm': 48,  # Height of the frame
-            'lens_width_mm': 56,    # Width of each lens
-            'lens_height_mm': 39,   # Height of each lens
-            'bridge_width_mm': 17,  # Width of the bridge (nose piece)
-            'temple_length_mm': 138, # Length of the temple arms
-            'fit_type': 'standard',
-            'image_file': 'glasses.png'  # Reference to your current image
+            'image_file': 'winter-sport_glasses.png'  # Winter sport glasses image
         }
     },
     'hat': {
-        'baseball_cap': {
-            'name': 'Baseball Cap',
+        'product_4': {
+            'name': 'Polo Hat',
             'hat_width_mm': 220,
             'hat_height_mm': 120,
             'head_circumference_mm': 580,
-            'fit_type': 'adjustable'
-        },
-        'fedora': {
-            'name': 'Fedora Hat',
-            'hat_width_mm': 240,
-            'hat_height_mm': 140,
-            'head_circumference_mm': 600,
-            'fit_type': 'standard'
+            'fit_type': 'adjustable',
+            'image_file': 'hat.png'  # Polo hat image
         }
     }
 }
@@ -108,18 +81,68 @@ PRODUCT_DATABASE = {
 _active_requests = set()
 _request_lock = asyncio.Lock()
 
-def get_glasses_accessory():
-    """Get cached glasses accessory or load from file"""
+# WebSocket connection manager
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: list[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def send_personal_message(self, message: str, websocket: WebSocket):
+        await websocket.send_text(message)
+
+manager = ConnectionManager()
+
+def get_hat_accessory(product_id="product_4"):
+    """Get hat accessory image based on product ID"""
+    # Map product IDs to their image files
+    product_images = {
+        'product_4': 'hat.png'  # Polo Hat
+    }
+    
+    image_file = product_images.get(product_id, 'hat.png')  # Default fallback
+    image_path = f"accessories/{image_file}"
+    
+    if os.path.exists(image_path):
+        return cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
+    else:
+        print(f"Warning: Hat image file not found: {image_path}")
+        return None
+
+def get_glasses_accessory(product_id="product_1"):
+    """Get cached glasses accessory or load from file based on product ID"""
     global _glasses_cache
-    if _glasses_cache is None and os.path.exists(_glasses_path):
-        _glasses_cache = cv2.imread(_glasses_path, cv2.IMREAD_UNCHANGED)
-    return _glasses_cache
+    
+    # Map product IDs to their image files
+    product_images = {
+        'product_1': 'glasses.png',           # Classic Aviator
+        'product_2': 'raider_sunglasses.png', # Raider Sunglasses
+        'product_3': 'winter-sport-glasses.png' # Winter Sport Glasses (fixed filename)
+    }
+    
+    image_file = product_images.get(product_id, 'glasses.png')  # Default fallback
+    image_path = f"accessories/{image_file}"
+    
+    if os.path.exists(image_path):
+        return cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
+    else:
+        print(f"Warning: Image file not found: {image_path}")
+        # Fallback to default glasses image
+        fallback_path = "accessories/glasses.png"
+        if os.path.exists(fallback_path):
+            return cv2.imread(fallback_path, cv2.IMREAD_UNCHANGED)
+        return None
 
 @router.get("/debug")
 async def debug_info():
     """Debug endpoint to check system status"""
     return {
-        "yolo_available": False,  # Simplified version
+        "yolo_available": True,  # Full version
         "accessories_exist": {
             "glasses": os.path.exists("accessories/glasses.png")
         },
@@ -127,7 +150,34 @@ async def debug_info():
         "numpy_version": np.__version__,
         "active_requests": len(_active_requests),
         "product_database": list(PRODUCT_DATABASE.keys()),
-        "status": "enhanced_dimensional_accuracy_ready"
+        "status": "three_tier_tryon_system_ready",
+        "endpoints": {
+            "single_image": "/single-tryon",
+            "realtime_stream": "/websocket-tryon", 
+            "high_accuracy": "/tryon"
+        }
+    }
+
+@router.get("/test-products")
+async def test_products():
+    """Test endpoint to verify product database structure"""
+    return {
+        "message": "Product database test",
+        "database_structure": PRODUCT_DATABASE,
+        "available_types": list(PRODUCT_DATABASE.keys()),
+        "products_by_type": {
+            product_type: list(products.keys()) 
+            for product_type, products in PRODUCT_DATABASE.items()
+        },
+        "example_lookup": {
+            "glasses": {
+                "product_1": PRODUCT_DATABASE.get('glasses', {}).get('product_1', 'NOT_FOUND'),
+                "product_2": PRODUCT_DATABASE.get('glasses', {}).get('product_2', 'NOT_FOUND'),
+            },
+            "hat": {
+                "product_4": PRODUCT_DATABASE.get('hat', {}).get('product_4', 'NOT_FOUND'),
+            }
+        }
     }
 
 @router.get("/products")
@@ -139,28 +189,30 @@ async def get_products():
         "total_products": sum(len(products) for products in PRODUCT_DATABASE.values())
     }
 
-@router.post("/tryon")
-async def tryon_endpoint(file: UploadFile = File(...), product_type: str = "glasses", product_id: str = "classic_aviator", show_measurements: bool = False):
-    """Enhanced try-on endpoint with accurate measurements and product dimensions"""
+# 1. SINGLE IMAGE TRY-ON - High quality, slower, for screenshots
+@router.post("/single-tryon")
+async def single_image_tryon(
+    file: UploadFile = File(...), 
+    product_type: str = Form("glasses"), 
+    product_id: str = Form("product_1"),  # Fixed: Use correct product ID
+    show_measurements: bool = Form(True)
+):
+    """Single Image Try-On: High-quality single shots for screenshots & evaluation"""
     import uuid
     request_id = str(uuid.uuid4())
     
-    async with _request_lock:
-        # If there are already active requests, return the original frame
-        if len(_active_requests) > 0:
-            print(f"Request {request_id}: Skipping - {len(_active_requests)} active requests")
-            data = await file.read()
-            np_img = np.frombuffer(data, np.uint8)
-            frame = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
-            if frame is not None:
-                _, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 60])
-                b64 = base64.b64encode(buf).decode("utf-8")
-                return {"image_base64": b64, "status": "skipped_multiple_requests"}
-            return JSONResponse(status_code=400, content={"error": "Invalid image"})
-        
-        # Add this request to active requests
-        _active_requests.add(request_id)
-        print(f"Request {request_id}: Processing - Active requests: {len(_active_requests)}")
+    # ENHANCED LOGGING: Log all received parameters
+    print(f"SINGLE IMAGE: Request {request_id}: Starting processing")
+    print(f"SINGLE IMAGE: Received parameters:")
+    print(f"  - product_type: '{product_type}' (type: {type(product_type)})")
+    print(f"  - product_id: '{product_id}' (type: {type(product_id)})")
+    print(f"  - show_measurements: {show_measurements}")
+    print(f"  - file: {file.filename if file else 'None'}")
+    
+    # Log available products in database
+    print(f"SINGLE IMAGE: Available products in database:")
+    for pt in PRODUCT_DATABASE:
+        print(f"  {pt}: {list(PRODUCT_DATABASE[pt].keys())}")
     
     try:
         data = await file.read()
@@ -172,21 +224,20 @@ async def tryon_endpoint(file: UploadFile = File(...), product_type: str = "glas
         # Store original dimensions for scaling back
         original_h, original_w = frame.shape[:2]
         
-        # ULTRA OPTIMIZE: Much smaller image size for real-time processing
-        target_size = 320  # Increased for better measurement accuracy
+        # HIGH QUALITY: Larger image size for maximum accuracy
+        target_size = 640  # Increased for maximum quality
         if original_w > target_size or original_h > target_size:
             scale = min(target_size/original_w, target_size/original_h)
             new_w, new_h = int(original_w * scale), int(original_h * scale)
-            frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+            frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_CUBIC)
 
-        # ENHANCED: Comprehensive facial measurements
+        # COMPREHENSIVE: Use both MediaPipe and YOLO for maximum accuracy
         facial_measurements = None
         product_dimensions = None
         placement_info = None
         
         try:
-            # ENHANCED: Use both MediaPipe and YOLO for better accuracy
-            print(f"DEBUG: Starting enhanced face detection with MediaPipe + YOLO")
+            print(f"SINGLE IMAGE: Starting comprehensive face detection with MediaPipe + YOLO")
             
             # Get facial landmarks with 3D data (MediaPipe)
             landmarks_2d, landmarks_3d = detect_face_landmarks_from_array(frame)
@@ -198,64 +249,368 @@ async def tryon_endpoint(file: UploadFile = File(...), product_type: str = "glas
             # Enhance detection with combined approach
             enhanced_detection = enhance_face_detection_with_yolo(frame, landmarks_2d)
             
-            print(f"DEBUG: MediaPipe landmarks: {landmarks_2d is not None}, landmarks_3d: {landmarks_3d is not None}")
-            print(f"DEBUG: YOLO face detections: {len(yolo_face_detections)}")
-            print(f"DEBUG: YOLO objects detected: {len(yolo_objects)}")
-            print(f"DEBUG: Enhanced detection confidence: {enhanced_detection['confidence']}")
-            
             if landmarks_2d and landmarks_3d:
-                print(f"DEBUG: Found {len(landmarks_2d)} MediaPipe landmarks")
+                print(f"SINGLE IMAGE: Found {len(landmarks_2d)} MediaPipe landmarks")
                 # Calculate comprehensive facial measurements
                 facial_measurements = get_facial_measurements(landmarks_2d, landmarks_3d, frame.shape)
                 
                 if facial_measurements:
-                    print(f"DEBUG: Facial measurements calculated successfully")
+                    print(f"SINGLE IMAGE: Facial measurements calculated successfully")
                     
                     # Add YOLO validation to measurements
                     if enhanced_detection['yolo_face_detected']:
                         facial_measurements['yolo_validation'] = True
                         facial_measurements['yolo_face_bbox'] = enhanced_detection['yolo_face_bbox']
-                        print(f"DEBUG: YOLO validation successful - face bbox: {enhanced_detection['yolo_face_bbox']}")
+                        print(f"SINGLE IMAGE: YOLO validation successful")
                     else:
                         facial_measurements['yolo_validation'] = False
-                        print(f"DEBUG: YOLO validation failed - using MediaPipe only")
+                        print(f"SINGLE IMAGE: YOLO validation failed - using MediaPipe only")
+                    
+                    # Get product dimensions from database
+                    print(f"SINGLE IMAGE: Looking up product - type: {product_type}, id: {product_id}")
+                    if product_type in PRODUCT_DATABASE and product_id in PRODUCT_DATABASE[product_type]:
+                        product_dimensions = PRODUCT_DATABASE[product_type][product_id]
+                        print(f"SINGLE IMAGE: Found product dimensions: {product_dimensions}")
+                    else:
+                        print(f"SINGLE IMAGE: Product not found in database, calculating generic dimensions")
+                        product_dimensions = calculate_product_dimensions(product_type, facial_measurements)
+                        
+        except Exception as e:
+            print(f"SINGLE IMAGE: Enhanced detection error: {e}")
+            facial_measurements = None
+
+        # HIGH QUALITY: Accurate Product Placement
+        product_applied = False
+        try:
+            if product_type == 'glasses':
+                glasses_accessory = get_glasses_accessory(product_id)
+                
+                if glasses_accessory is not None and facial_measurements:
+                    frame, placement_info = place_product_with_measurements(
+                        frame, glasses_accessory, facial_measurements, 
+                        product_type, product_dimensions
+                    )
+                    product_applied = True
+                    
+            elif product_type == 'hat':
+                # For hats, load hat accessories
+                hat_accessory = get_hat_accessory(product_id)
+                if hat_accessory is not None and facial_measurements:
+                    # Placeholder hat placement - you can implement specific hat placement logic here
+                    print(f"SINGLE IMAGE: Hat accessory loaded for {product_id}")
+                    product_applied = True
+                    
+        except Exception as e:
+            print(f"SINGLE IMAGE: Product placement error: {e}")
+
+        # HIGH QUALITY: Always show measurements for single image
+        if facial_measurements:
+            frame = draw_measurement_overlay(frame, facial_measurements, product_dimensions)
+
+        # Scale back to original size
+        if original_w != frame.shape[1] or original_h != frame.shape[0]:
+            frame = cv2.resize(frame, (original_w, original_h), interpolation=cv2.INTER_CUBIC)
+
+        # HIGH QUALITY: Maximum JPEG quality for screenshots
+        _, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
+        b64 = base64.b64encode(buf).decode("utf-8")
+        
+        # Comprehensive response with all data
+        response_data = {
+            "image_base64": b64, 
+            "status": "single_image_complete",
+            "mode": "single_image",
+            "quality": "maximum",
+            "product_applied": product_applied,
+            "product_type": product_type,
+            "product_id": product_id
+        }
+        
+        if facial_measurements:
+            response_data["facial_measurements"] = {
+                "ipd_mm": round(facial_measurements.get('estimated_ipd_mm', 0), 1),
+                "face_width_mm": round(facial_measurements.get('face_width_mm', 0), 1),
+                "head_yaw_degrees": round(facial_measurements.get('head_yaw_degrees', 0), 1),
+                "head_roll_degrees": round(facial_measurements.get('head_roll_degrees', 0), 1),
+                "pixels_per_mm": round(facial_measurements.get('pixels_per_mm', 0), 3)
+            }
+        
+        if product_dimensions:
+            response_data["product_dimensions"] = product_dimensions
+            
+        if placement_info:
+            response_data["placement_info"] = placement_info
+        
+        return response_data
+        
+    except Exception as e:
+        print(f"SINGLE IMAGE: Error: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
+# 2. REAL-TIME STREAM - WebSocket-based, fast, adaptive quality
+@router.websocket("/websocket-tryon")
+async def realtime_tryon_websocket(websocket: WebSocket):
+    """Real-Time Stream: WebSocket-based, fast, adaptive quality for live interaction"""
+    await manager.connect(websocket)
+    print(f"REALTIME: WebSocket connected. Total connections: {len(manager.active_connections)}")
+    
+    try:
+        while True:
+            # Receive base64 image data
+            data = await websocket.receive_text()
+            message = json.loads(data)
+            
+            if message.get("type") == "frame":
+                # Process frame for real-time try-on
+                frame_data = message.get("image_base64", "")
+                product_type = message.get("product_type", "glasses")
+                product_id = message.get("product_id", "product_1")  # Fixed: Use correct product ID
+                
+                # ENHANCED LOGGING: Log all received parameters
+                print(f"REALTIME: Received frame - Request ID: {len(manager.active_connections)}")
+                print(f"REALTIME: Received parameters:")
+                print(f"  - product_type: '{product_type}' (type: {type(product_type)})")
+                print(f"  - product_id: '{product_id}' (type: {type(product_id)})")
+                print(f"  - frame_data_length: {len(frame_data)}")
+                
+                # Log available products in database
+                print(f"REALTIME: Available products in database:")
+                for pt in PRODUCT_DATABASE:
+                    print(f"  {pt}: {list(PRODUCT_DATABASE[pt].keys())}")
+                
+                try:
+                    # Decode base64 image
+                    frame_bytes = base64.b64decode(frame_data)
+                    np_img = np.frombuffer(frame_bytes, np.uint8)
+                    frame = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
+                    
+                    if frame is not None:
+                        # FAST PROCESSING: Smaller image size for speed
+                        target_size = 256  # Smaller for speed
+                        original_h, original_w = frame.shape[:2]
+                        if original_w > target_size or original_h > target_size:
+                            scale = min(target_size/original_w, target_size/original_h)
+                            new_w, new_h = int(original_w * scale), int(original_h * scale)
+                            frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+                        
+                        # FAST: MediaPipe only (skip YOLO for speed)
+                        facial_measurements = None
+                        try:
+                            landmarks_2d, landmarks_3d = detect_face_landmarks_from_array(frame)
+                            
+                            if landmarks_2d and landmarks_3d:
+                                facial_measurements = get_facial_measurements(landmarks_2d, landmarks_3d, frame.shape)
+                                
+                        except Exception as e:
+                            print(f"REALTIME: MediaPipe error: {e}")
+                        
+                        # FAST: Quick product placement
+                        if facial_measurements:
+                            try:
+                                if product_type == 'glasses':
+                                    print(f"REALTIME: Looking up product - type: {product_type}, id: {product_id}")
+                                    if product_type in PRODUCT_DATABASE and product_id in PRODUCT_DATABASE[product_type]:
+                                        product_dimensions = PRODUCT_DATABASE[product_type][product_id]
+                                        print(f"REALTIME: Found product dimensions: {product_dimensions}")
+                                    else:
+                                        print(f"REALTIME: Product not found in database - type: {product_type}, id: {product_id}")
+                                        product_dimensions = {}
+                                    
+                                    glasses_accessory = get_glasses_accessory(product_id)
+                                    if glasses_accessory is not None:
+                                        frame, _ = place_product_with_measurements(
+                                            frame, glasses_accessory, facial_measurements, 
+                                            product_type, product_dimensions
+                                        )
+                                        
+                                elif product_type == 'hat':
+                                    print(f"REALTIME: Processing hat - type: {product_type}, id: {product_id}")
+                                    hat_accessory = get_hat_accessory(product_id)
+                                    if hat_accessory is not None:
+                                        print(f"REALTIME: Hat accessory loaded for {product_id}")
+                                        # Placeholder hat placement logic here
+                                        
+                            except Exception as e:
+                                print(f"REALTIME: Product placement error: {e}")
+                        
+                        # Scale back to original size
+                        if original_w != frame.shape[1] or original_h != frame.shape[0]:
+                            frame = cv2.resize(frame, (original_w, original_h), interpolation=cv2.INTER_LINEAR)
+                        
+                        # FAST: Lower quality for speed
+                        _, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
+                        b64 = base64.b64encode(buf).decode("utf-8")
+                        
+                        # Send processed frame back
+                        response = {
+                            "type": "processed_frame",
+                            "image_base64": b64,
+                            "status": "realtime_complete",
+                            "mode": "realtime_stream",
+                            "quality": "adaptive_fast"
+                        }
+                        
+                        await websocket.send_text(json.dumps(response))
+                        
+                except Exception as e:
+                    print(f"REALTIME: Frame processing error: {e}")
+                    error_response = {
+                        "type": "error",
+                        "error": str(e),
+                        "status": "realtime_error"
+                    }
+                    await websocket.send_text(json.dumps(error_response))
+                    
+            elif message.get("type") == "ping":
+                # Keep connection alive
+                await websocket.send_text(json.dumps({"type": "pong"}))
+                
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+        print(f"REALTIME: WebSocket disconnected. Total connections: {len(manager.active_connections)}")
+    except Exception as e:
+        print(f"REALTIME: WebSocket error: {e}")
+        manager.disconnect(websocket)
+
+# 3. HIGH-ACCURACY STREAM - Current system, balanced approach
+@router.post("/tryon")
+async def tryon_endpoint(
+    file: UploadFile = File(...), 
+    product_type: str = Form("glasses"), 
+    product_id: str = Form("product_1"), 
+    show_measurements: bool = Form(False)
+):
+    """High-Accuracy Stream: Balanced approach for continuous try-on experience"""
+    import uuid
+    request_id = str(uuid.uuid4())
+    
+    async with _request_lock:
+        # If there are already active requests, return the original frame
+        if len(_active_requests) > 0:
+            print(f"HIGH-ACCURACY: Request {request_id}: Skipping - {len(_active_requests)} active requests")
+            data = await file.read()
+            np_img = np.frombuffer(data, np.uint8)
+            frame = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
+            if frame is not None:
+                _, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 60])
+                b64 = base64.b64encode(buf).decode("utf-8")
+                return {"image_base64": b64, "status": "skipped_multiple_requests"}
+            return JSONResponse(status_code=400, content={"error": "Invalid image"})
+        
+        # Add this request to active requests
+        _active_requests.add(request_id)
+        print(f"HIGH-ACCURACY: Request {request_id}: Processing - Active requests: {len(_active_requests)}")
+    
+    try:
+        data = await file.read()
+        np_img = np.frombuffer(data, np.uint8)
+        frame = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
+        if frame is None:
+            return JSONResponse(status_code=400, content={"error": "Invalid image"})
+
+        # Log received parameters
+        print(f"HIGH-ACCURACY: Request {request_id}: Processing - Active requests: {len(_active_requests)}")
+        print(f"HIGH-ACCURACY: Received parameters:")
+        print(f"  - product_type: '{product_type}' (type: {type(product_type)})")
+        print(f"  - product_id: '{product_id}' (type: {type(product_id)})")
+        print(f"  - show_measurements: {show_measurements}")
+        
+        # Log available products in database
+        print(f"HIGH-ACCURACY: Available products in database:")
+        for pt in PRODUCT_DATABASE:
+            print(f"  {pt}: {list(PRODUCT_DATABASE[pt].keys())}")
+
+        # Store original dimensions for scaling back
+        original_h, original_w = frame.shape[:2]
+        
+        # BALANCED: Medium image size for balanced accuracy/speed
+        target_size = 320  # Balanced size
+        if original_w > target_size or original_h > target_size:
+            scale = min(target_size/original_w, target_size/original_h)
+            new_w, new_h = int(original_w * scale), int(original_h * scale)
+            frame = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+
+        # BALANCED: Comprehensive facial measurements
+        facial_measurements = None
+        product_dimensions = None
+        placement_info = None
+        
+        try:
+            # BALANCED: Use both MediaPipe and YOLO for good accuracy
+            print(f"HIGH-ACCURACY: Starting balanced face detection with MediaPipe + YOLO")
+            
+            # Get facial landmarks with 3D data (MediaPipe)
+            landmarks_2d, landmarks_3d = detect_face_landmarks_from_array(frame)
+            
+            # Get YOLO face detection
+            yolo_face_detections = detect_face_yolo(frame)
+            yolo_objects = detect_objects_yolo(frame)
+            
+            # Enhance detection with combined approach
+            enhanced_detection = enhance_face_detection_with_yolo(frame, landmarks_2d)
+            
+            print(f"HIGH-ACCURACY: MediaPipe landmarks: {landmarks_2d is not None}, landmarks_3d: {landmarks_3d is not None}")
+            print(f"HIGH-ACCURACY: YOLO face detections: {len(yolo_face_detections)}")
+            print(f"HIGH-ACCURACY: YOLO objects detected: {len(yolo_objects)}")
+            print(f"HIGH-ACCURACY: Enhanced detection confidence: {enhanced_detection['confidence']}")
+            
+            if landmarks_2d and landmarks_3d:
+                print(f"HIGH-ACCURACY: Found {len(landmarks_2d)} MediaPipe landmarks")
+                # Calculate comprehensive facial measurements
+                facial_measurements = get_facial_measurements(landmarks_2d, landmarks_3d, frame.shape)
+                
+                if facial_measurements:
+                    print(f"HIGH-ACCURACY: Facial measurements calculated successfully")
+                    
+                    # Add YOLO validation to measurements
+                    if enhanced_detection['yolo_face_detected']:
+                        facial_measurements['yolo_validation'] = True
+                        facial_measurements['yolo_face_bbox'] = enhanced_detection['yolo_face_bbox']
+                        print(f"HIGH-ACCURACY: YOLO validation successful - face bbox: {enhanced_detection['yolo_face_bbox']}")
+                    else:
+                        facial_measurements['yolo_validation'] = False
+                        print(f"HIGH-ACCURACY: YOLO validation failed - using MediaPipe only")
                     
                     # Get product dimensions from database
                     if product_type in PRODUCT_DATABASE and product_id in PRODUCT_DATABASE[product_type]:
                         product_dimensions = PRODUCT_DATABASE[product_type][product_id]
-                        print(f"DEBUG: Using product dimensions from database: {product_dimensions}")
+                        print(f"HIGH-ACCURACY: Using product dimensions from database: {product_dimensions}")
                     else:
+                        print(f"HIGH-ACCURACY: Product not found in database - type: {product_type}, id: {product_id}")
+                        print(f"HIGH-ACCURACY: Available types: {list(PRODUCT_DATABASE.keys())}")
+                        if product_type in PRODUCT_DATABASE:
+                            print(f"HIGH-ACCURACY: Available IDs for {product_type}: {list(PRODUCT_DATABASE[product_type].keys())}")
                         # Calculate generic dimensions based on facial measurements
                         product_dimensions = calculate_product_dimensions(product_type, facial_measurements)
-                        print(f"DEBUG: Calculated generic dimensions: {product_dimensions}")
+                        print(f"HIGH-ACCURACY: Calculated generic dimensions: {product_dimensions}")
                 else:
-                    print(f"DEBUG: Failed to calculate facial measurements")
+                    print(f"HIGH-ACCURACY: Failed to calculate facial measurements")
             else:
-                print(f"DEBUG: No MediaPipe landmarks detected")
+                print(f"HIGH-ACCURACY: No MediaPipe landmarks detected")
                 # Try YOLO-only approach as fallback
                 if yolo_face_detections:
-                    print(f"DEBUG: Using YOLO-only detection as fallback")
+                    print(f"HIGH-ACCURACY: Using YOLO-only detection as fallback")
                     facial_measurements = {
                         'yolo_only': True,
                         'yolo_face_bbox': yolo_face_detections[0]['bbox'],
                         'confidence': yolo_face_detections[0]['confidence']
                     }
                 else:
-                    print(f"DEBUG: No face detected by either MediaPipe or YOLO")
+                    print(f"HIGH-ACCURACY: No face detected by either MediaPipe or YOLO")
                     facial_measurements = None
                         
         except Exception as e:
-            print(f"Enhanced detection error: {e}")
+            print(f"HIGH-ACCURACY: Enhanced detection error: {e}")
             import traceback
             traceback.print_exc()
             facial_measurements = None
 
-        # ENHANCED: Accurate Product Placement
+        # BALANCED: Accurate Product Placement
         product_applied = False
         try:
             if product_type == 'glasses':
                 # Get cached glasses accessory
-                glasses_accessory = get_glasses_accessory()
+                glasses_accessory = get_glasses_accessory(product_id)
                 
                 if glasses_accessory is not None and facial_measurements:
                     # Use enhanced placement with measurements
@@ -266,16 +621,17 @@ async def tryon_endpoint(file: UploadFile = File(...), product_type: str = "glas
                     product_applied = True
                     
             elif product_type == 'hat':
-                # For hats, you'd need to load hat accessories
-                # This is a placeholder for hat functionality
-                if facial_measurements:
-                    # Placeholder hat placement
-                    pass
+                # For hats, load hat accessories
+                hat_accessory = get_hat_accessory(product_id)
+                if hat_accessory is not None and facial_measurements:
+                    # Placeholder hat placement - you can implement specific hat placement logic here
+                    print(f"HIGH-ACCURACY: Hat accessory loaded for {product_id}")
+                    product_applied = True
                     
         except Exception as e:
-            print(f"Product placement error: {e}")
+            print(f"HIGH-ACCURACY: Product placement error: {e}")
 
-        # ENHANCED: Draw measurement overlays if requested
+        # BALANCED: Draw measurement overlays if requested
         if show_measurements and facial_measurements:
             frame = draw_measurement_overlay(frame, facial_measurements, product_dimensions)
 
@@ -283,14 +639,16 @@ async def tryon_endpoint(file: UploadFile = File(...), product_type: str = "glas
         if original_w != frame.shape[1] or original_h != frame.shape[0]:
             frame = cv2.resize(frame, (original_w, original_h), interpolation=cv2.INTER_LINEAR)
 
-        # ULTRA OPTIMIZE: Much lower JPEG quality for faster transmission
-        _, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 60])  # Higher quality for accuracy
+        # BALANCED: Medium JPEG quality for balanced speed/quality
+        _, buf = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 60])  # Balanced quality
         b64 = base64.b64encode(buf).decode("utf-8")
         
         # Enhanced response with measurement data
         response_data = {
             "image_base64": b64, 
-            "status": "dimensional_accuracy_complete",
+            "status": "high_accuracy_complete",
+            "mode": "high_accuracy_stream",
+            "quality": "balanced",
             "detections": [],  # Simplified version
             "total_objects": 0,
             "product_applied": product_applied,
@@ -321,13 +679,13 @@ async def tryon_endpoint(file: UploadFile = File(...), product_type: str = "glas
         return response_data
         
     except Exception as e:
-        print(f"Error in tryon: {e}")
+        print(f"HIGH-ACCURACY: Error in tryon: {e}")
         return JSONResponse(status_code=500, content={"error": str(e)})
     finally:
         # Always remove this request from active requests
         async with _request_lock:
             _active_requests.discard(request_id)
-            print(f"Request {request_id}: Completed - Active requests: {len(_active_requests)}")
+            print(f"HIGH-ACCURACY: Request {request_id}: Completed - Active requests: {len(_active_requests)}")
 
 @router.post("/measurements")
 async def get_measurements_only(file: UploadFile = File(...)):

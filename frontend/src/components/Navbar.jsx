@@ -63,8 +63,8 @@ const Navbar = () => {
                 </Link>
               </li>
               <li className="shrink-0">
-                <Link to="/try-on" title="" className="text-2xl font-semibold text-gray-900 hover:text-primary-700 dark:text-white dark:hover:text-primary-500">
-                  New In
+                <Link to="/three-tier-tryon" title="" className="text-2xl font-semibold text-gray-900 hover:text-primary-700 dark:text-white dark:hover:text-primary-500">
+                  Try-On System
                 </Link>
               </li>
               <li className="shrink-0">
@@ -194,7 +194,7 @@ const Navbar = () => {
                 <Link to="/try-on" className="hover:text-primary-700 dark:hover:text-primary-500">Accessories</Link>
               </li>
               <li>
-                <Link to="/try-on" className="hover:text-primary-700 dark:hover:text-primary-500">New In</Link>
+                <Link to="/three-tier-tryon" className="hover:text-primary-700 dark:hover:text-primary-500">Try-On System</Link>
               </li>
               <li>
                 <Link to="/" className="hover:text-primary-700 dark:hover:text-primary-500">About</Link>

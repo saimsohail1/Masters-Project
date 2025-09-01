@@ -95,36 +95,44 @@ def get_facial_measurements(landmarks_2d, landmarks_3d, image_shape):
     ipd_pixels = math.sqrt((right_eye_inner[0] - left_eye_inner[0])**2 + 
                           (right_eye_inner[1] - left_eye_inner[1])**2)
     
-    # Estimate real-world IPD (average is ~63mm)
-    # This is a rough estimation - in production, you'd want camera calibration
-    estimated_ipd_mm = 63.0
-    
-    # Calculate pixels per mm - this is the key scaling factor
-    # If IPD is 63mm and we measure X pixels, then pixels_per_mm = X/63
-    pixels_per_mm = ipd_pixels / estimated_ipd_mm
-    
-    # Apply a scaling factor to make glasses appear more realistic
-    # The issue is that MediaPipe measurements can be too conservative
-    # We'll apply a multiplier to make glasses appear at proper size
-    scaling_multiplier = 2.5  # Increased from 1.5 to 2.5 for better visibility
-    pixels_per_mm *= scaling_multiplier
-    
-    # Debug logging
-    print(f"DEBUG: IPD pixels: {ipd_pixels:.2f}, IPD mm: {estimated_ipd_mm:.2f}")
-    print(f"DEBUG: Pixels per mm: {pixels_per_mm:.4f} (after {scaling_multiplier}x scaling)")
-    print(f"DEBUG: 135mm glasses would be {135 * pixels_per_mm:.1f} pixels wide")
-    
-    measurements['ipd_pixels'] = ipd_pixels
-    measurements['pixels_per_mm'] = pixels_per_mm
-    measurements['estimated_ipd_mm'] = estimated_ipd_mm
-    
-    # Face width measurement
+    # Face width measurement (cheek to cheek)
     left_cheek = landmarks_2d[FACIAL_LANDMARKS['left_cheek']]
     right_cheek = landmarks_2d[FACIAL_LANDMARKS['right_cheek']]
     face_width_pixels = math.sqrt((right_cheek[0] - left_cheek[0])**2 + 
                                  (right_cheek[1] - left_cheek[1])**2)
+    
+    # FIXED: Better scaling calculation based on face proportions
+    # Instead of using fixed IPD assumptions, use face width as reference
+    # Average face width is about 140-160mm, so we can estimate better
+    
+    # Calculate pixels per mm based on face width (more reliable than IPD)
+    # Use a realistic face width estimate based on the image size
+    estimated_face_width_mm = 150.0  # Average adult face width
+    
+    # Calculate pixels per mm from face width
+    pixels_per_mm = face_width_pixels / estimated_face_width_mm
+    
+    # For glasses, we want them to appear at realistic size
+    # Standard glasses are about 135-150mm wide, which should look natural
+    # Apply a reasonable scaling factor to make glasses visible
+    glasses_scaling_factor = 1.2  # Make glasses slightly larger than calculated
+    
+    # Store both raw and scaled measurements
+    measurements['ipd_pixels'] = ipd_pixels
+    measurements['pixels_per_mm'] = pixels_per_mm
+    measurements['pixels_per_mm_scaled'] = pixels_per_mm * glasses_scaling_factor
+    measurements['estimated_ipd_mm'] = ipd_pixels / pixels_per_mm
+    
+    # Face width measurements
     measurements['face_width_pixels'] = face_width_pixels
     measurements['face_width_mm'] = face_width_pixels / pixels_per_mm
+    
+    # Debug logging with better information
+    print(f"DEBUG: IPD pixels: {ipd_pixels:.2f}")
+    print(f"DEBUG: Face width pixels: {face_width_pixels:.2f}")
+    print(f"DEBUG: Pixels per mm (raw): {pixels_per_mm:.4f}")
+    print(f"DEBUG: Pixels per mm (scaled): {measurements['pixels_per_mm_scaled']:.4f}")
+    print(f"DEBUG: 135mm glasses would be {135 * measurements['pixels_per_mm_scaled']:.1f} pixels wide")
     
     # Head pose estimation using 3D landmarks
     nose_tip_3d = landmarks_3d[FACIAL_LANDMARKS['nose_tip']]

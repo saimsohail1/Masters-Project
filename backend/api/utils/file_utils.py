@@ -205,12 +205,14 @@ def place_glasses_accurately(image, glasses_array, facial_measurements, product_
         eye_center = facial_measurements['eye_center']
         nose_bridge = facial_measurements['nose_bridge']
         ipd_pixels = facial_measurements['ipd_pixels']
-        pixels_per_mm = facial_measurements['pixels_per_mm']
+        
+        # FIXED: Use the scaled pixels_per_mm for better glasses sizing
+        pixels_per_mm = facial_measurements.get('pixels_per_mm_scaled', facial_measurements['pixels_per_mm'])
         
         print(f"DEBUG: Eye center: {eye_center}")
         print(f"DEBUG: Nose bridge: {nose_bridge}")
         print(f"DEBUG: IPD pixels: {ipd_pixels}")
-        print(f"DEBUG: Pixels per mm: {pixels_per_mm}")
+        print(f"DEBUG: Pixels per mm (using scaled): {pixels_per_mm}")
         
         # Get head pose for rotation correction
         head_yaw = facial_measurements.get('head_yaw_radians', 0)
@@ -219,15 +221,15 @@ def place_glasses_accurately(image, glasses_array, facial_measurements, product_
         # Calculate accurate glasses dimensions
         if product_dimensions:
             # Use provided product dimensions
-            frame_width_mm = product_dimensions.get('frame_width_mm', 70)
-            frame_height_mm = product_dimensions.get('frame_height_mm', 28)
+            frame_width_mm = product_dimensions.get('frame_width_mm', 135)
+            frame_height_mm = product_dimensions.get('frame_height_mm', 50)
         else:
             # Calculate based on facial measurements
             ipd_mm = facial_measurements['estimated_ipd_mm']
             frame_width_mm = ipd_mm * 1.1  # 10% wider than IPD
             frame_height_mm = frame_width_mm * 0.4
         
-        # Convert to pixels
+        # Convert to pixels using the scaled measurement
         frame_width_pixels = int(frame_width_mm * pixels_per_mm)
         frame_height_pixels = int(frame_height_mm * pixels_per_mm)
         
@@ -296,10 +298,14 @@ def place_hat_accurately(image, hat_array, facial_measurements, product_dimensio
     Place hat with accurate sizing and positioning based on facial measurements.
     """
     try:
+        print(f"DEBUG: Starting hat placement")
+        
         # Get key facial points
         forehead_center = facial_measurements['forehead_center']
         face_width_pixels = facial_measurements['face_width_pixels']
-        pixels_per_mm = facial_measurements['pixels_per_mm']
+        
+        # FIXED: Use the scaled pixels_per_mm for better hat sizing
+        pixels_per_mm = facial_measurements.get('pixels_per_mm_scaled', facial_measurements['pixels_per_mm'])
         
         # Get head pose
         head_yaw = facial_measurements.get('head_yaw_radians', 0)
@@ -307,14 +313,14 @@ def place_hat_accurately(image, hat_array, facial_measurements, product_dimensio
         
         # Calculate accurate hat dimensions
         if product_dimensions:
-            hat_width_mm = product_dimensions.get('hat_width_mm', 200)
+            hat_width_mm = product_dimensions.get('hat_width_mm', 220)
             hat_height_mm = product_dimensions.get('hat_height_mm', 120)
         else:
             face_width_mm = facial_measurements['face_width_mm']
             hat_width_mm = face_width_mm * 1.2  # Slightly wider than face
             hat_height_mm = face_width_mm * 0.8
         
-        # Convert to pixels
+        # Convert to pixels using the scaled measurement
         hat_width_pixels = int(hat_width_mm * pixels_per_mm)
         hat_height_pixels = int(hat_height_mm * pixels_per_mm)
         
