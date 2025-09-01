@@ -12,7 +12,7 @@ const VirtualTryOn = () => {
   const [imageSrc, setImageSrc] = useState(null);
   const [result, setResult] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState("current_glasses");
+  const [selectedProduct, setSelectedProduct] = useState("product_1");
   const [showMeasurements, setShowMeasurements] = useState(false);
   const [measurements, setMeasurements] = useState(null);
   const [calibrationMode, setCalibrationMode] = useState(false);
@@ -25,10 +25,38 @@ const VirtualTryOn = () => {
   });
 
   const products = [
-    { id: "current_glasses", name: "Current Glasses (135mm)", type: "glasses" },
-    { id: "classic_aviator", name: "Classic Aviator (145mm)", type: "glasses" },
-    { id: "round_retro", name: "Round Retro (125mm)", type: "glasses" },
-    { id: "sport_performance", name: "Sport Performance (150mm)", type: "glasses" },
+    { 
+      id: "product_1", 
+      name: "Classic Aviator", 
+      type: "glasses",
+      image: "glassses.png",
+      brand: "Ray-Ban",
+      price: 199.99
+    },
+    { 
+      id: "product_2", 
+      name: "Raider Sunglasses", 
+      type: "glasses",
+      image: "raider_sunglasses.png",
+      brand: "Oakley",
+      price: 299.99
+    },
+    { 
+      id: "product_3", 
+      name: "Winter Sport Glasses", 
+      type: "glasses",
+      image: "winter-sport-glasses.png",
+      brand: "Smith",
+      price: 349.99
+    },
+    { 
+      id: "product_4", 
+      name: "Polo Hat", 
+      type: "hat",
+      image: "hat.png",
+      brand: "Nike",
+      price: 29.99
+    },
   ];
 
   const capture = () => {
@@ -174,18 +202,30 @@ const VirtualTryOn = () => {
           <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
             Select Product
           </h2>
-          <div className="flex flex-wrap gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {products.map((product) => (
               <button
                 key={product.id}
                 onClick={() => setSelectedProduct(product.id)}
-                className={`px-4 py-2 rounded-lg font-semibold transition duration-300 ${
+                className={`p-4 rounded-lg border-2 text-left transition-all ${
                   selectedProduct === product.id
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
-                {product.name}
+                <div className="flex items-center space-x-3">
+                  <img 
+                    src={`/src/images/${product.image}`} 
+                    alt={product.name}
+                    className="w-12 h-12 object-cover rounded"
+                  />
+                  <div>
+                    <div className="font-semibold text-gray-800">{product.name}</div>
+                    <div className="text-sm text-gray-600">
+                      {product.brand} • ${product.price} • {product.type}
+                    </div>
+                  </div>
+                </div>
               </button>
             ))}
           </div>

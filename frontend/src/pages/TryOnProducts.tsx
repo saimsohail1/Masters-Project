@@ -6,98 +6,108 @@ const TryOnProducts = () => {
   
   const products = [
     {
-      id: 1,
-      name: "Classic Aviator Sunglasses",
+      id: "product_1",
+      name: "Classic Aviator",
       category: "Glasses",
-      price: "$129.99",
-      image: "🕶️",
+      price: "$199.99",
+      image: "glassses.png",
       description: "Timeless aviator style with premium UV protection",
-      colors: ["Gold", "Silver", "Black"]
+      colors: ["Gold", "Silver", "Black"],
+      brand: "Ray-Ban"
     },
     {
-      id: 2,
-      name: "Round Retro Glasses",
+      id: "product_2",
+      name: "Raider Sunglasses",
       category: "Glasses", 
-      price: "$89.99",
-      image: "👓",
-      description: "Vintage-inspired round frames for a sophisticated look",
-      colors: ["Tortoise", "Black", "Clear"]
+      price: "$299.99",
+      image: "raider_sunglasses.png",
+      description: "Round retro frames for a sophisticated look",
+      colors: ["Tortoise", "Black", "Clear"],
+      brand: "Oakley"
     },
     {
-      id: 3,
-      name: "Sport Performance Sunglasses",
+      id: "product_3",
+      name: "Winter Sport Glasses",
       category: "Glasses",
-      price: "$149.99", 
-      image: "🕶️",
+      price: "$349.99", 
+      image: "winter-sport-glasses.png",
       description: "High-performance sports sunglasses with anti-glare coating",
-      colors: ["Blue", "Green", "Gray"]
+      colors: ["Blue", "Green", "Gray"],
+      brand: "Smith"
     },
     {
-      id: 4,
-      name: "Baseball Cap",
+      id: "product_4",
+      name: "Polo Hat",
       category: "Hat",
-      price: "$34.99",
-      image: "🧢",
-      description: "Classic baseball cap with adjustable fit",
-      colors: ["Navy", "Black", "Gray", "Red"]
+      price: "$29.99",
+      image: "hat.png",
+      description: "Classic polo hat with adjustable fit",
+      colors: ["Navy", "Black", "Gray", "Red"],
+      brand: "Nike"
     },
     {
-      id: 5,
-      name: "Fedora Hat",
-      category: "Hat",
-      price: "$59.99",
-      image: "🎩",
-      description: "Elegant fedora hat for a sophisticated appearance",
-      colors: ["Brown", "Black", "Gray"]
-    },
-    {
-      id: 6,
+      id: "product_5",
       name: "Cat Eye Sunglasses",
       category: "Glasses",
       price: "$119.99",
-      image: "🕶️",
+      image: "glassses.png",
       description: "Fashionable cat eye frames for a bold statement",
-      colors: ["Rose Gold", "Black", "Tortoise"]
+      colors: ["Rose Gold", "Black", "Tortoise"],
+      brand: "Ray-Ban"
     },
     {
-      id: 7,
+      id: "product_6",
       name: "Beanie Hat",
       category: "Hat",
       price: "$24.99",
-      image: "🧢",
+      image: "hat.png",
       description: "Warm and cozy beanie for cold weather",
-      colors: ["Black", "Gray", "Navy", "Red"]
+      colors: ["Black", "Gray", "Navy", "Red"],
+      brand: "Nike"
     },
     {
-      id: 8,
+      id: "product_7",
       name: "Pilot Sunglasses",
       category: "Glasses",
       price: "$169.99",
-      image: "🕶️",
+      image: "raider_sunglasses.png",
       description: "Premium pilot sunglasses with polarized lenses",
-      colors: ["Gold", "Silver", "Black"]
+      colors: ["Gold", "Silver", "Black"],
+      brand: "Oakley"
     },
     {
-      id: 9,
+      id: "product_8",
       name: "Bucket Hat",
       category: "Hat",
       price: "$29.99",
-      image: "🧢",
+      image: "hat.png",
       description: "Casual bucket hat for outdoor activities",
-      colors: ["Khaki", "Black", "Blue", "Green"]
+      colors: ["Khaki", "Black", "Blue", "Green"],
+      brand: "Nike"
     },
     {
-      id: 10,
+      id: "product_9",
       name: "Reading Glasses",
       category: "Glasses",
       price: "$79.99",
-      image: "👓",
+      image: "glassses.png",
       description: "Comfortable reading glasses with anti-reflective coating",
-      colors: ["Black", "Brown", "Clear"]
+      colors: ["Black", "Brown", "Clear"],
+      brand: "Ray-Ban"
+    },
+    {
+      id: "product_10",
+      name: "Sport Performance",
+      category: "Glasses",
+      price: "$149.99",
+      image: "winter-sport-glasses.png",
+      description: "High-performance sports eyewear for active lifestyles",
+      colors: ["Blue", "Green", "Gray"],
+      brand: "Smith"
     }
   ];
 
-  const handleTryOn = (productId: number) => {
+  const handleTryOn = (productId: string) => {
     console.log(`Starting AR try-on for product ${productId}`);
     navigate('/tryon-stream');
   };
@@ -138,10 +148,12 @@ const TryOnProducts = () => {
                 {products.slice(0, 8).map((product) => (
                   <div key={product.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-xl transition duration-300 overflow-hidden group">
                     {/* Product Image */}
-                    <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center p-8">
-                      <div className="text-8xl group-hover:scale-110 transition duration-300">
-                        {product.image}
-                      </div>
+                    <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center p-6 overflow-hidden">
+                      <img 
+                        src={`/src/images/${product.image}`}
+                        alt={product.name}
+                        className="w-4/5 h-4/5 object-contain group-hover:scale-110 transition duration-300"
+                      />
                     </div>
 
                     {/* Product Info */}
@@ -153,6 +165,10 @@ const TryOnProducts = () => {
                         <span className="text-lg font-bold text-gray-900 dark:text-white">
                           {product.price}
                         </span>
+                      </div>
+                      
+                      <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                        {product.brand}
                       </div>
 
                       <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
@@ -211,8 +227,12 @@ const TryOnProducts = () => {
                   {products.slice(8, 10).map((product) => (
                     <div key={product.id} className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 hover:bg-gray-100 dark:hover:bg-gray-600 transition duration-300">
                       <div className="flex items-center space-x-3">
-                        <div className="text-3xl">
-                          {product.image}
+                        <div className="w-10 h-10 rounded-lg overflow-hidden">
+                          <img 
+                            src={`/src/images/${product.image}`}
+                            alt={product.name}
+                            className="w-full h-full object-contain"
+                          />
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
