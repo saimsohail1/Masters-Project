@@ -39,6 +39,11 @@ FACIAL_LANDMARKS = {
     'right_forehead': 338,
     'center_forehead': 151,
     
+    # Head top landmarks (for hat placement)
+    'head_top_left': 8,
+    'head_top_right': 9,
+    'head_top_center': 10,
+    
     # Chin landmarks
     'chin': 152,
     
@@ -164,9 +169,32 @@ def get_facial_measurements(landmarks_2d, landmarks_3d, image_shape):
     nose_bridge = landmarks_2d[FACIAL_LANDMARKS['nose_bridge']]
     measurements['nose_bridge'] = nose_bridge
     
-    # Forehead position for hats
+    # ENHANCED: Head region detection for better hat placement
     center_forehead = landmarks_2d[FACIAL_LANDMARKS['center_forehead']]
     measurements['forehead_center'] = center_forehead
+    
+    # Calculate head top region using multiple landmarks
+    head_top_center = landmarks_2d[FACIAL_LANDMARKS['head_top_center']]
+    head_top_left = landmarks_2d[FACIAL_LANDMARKS['head_top_left']]
+    head_top_right = landmarks_2d[FACIAL_LANDMARKS['head_top_right']]
+    
+    # Calculate head width at the top
+    head_top_width_pixels = math.sqrt((head_top_right[0] - head_top_left[0])**2 + 
+                                     (head_top_right[1] - head_top_left[1])**2)
+    
+    # Calculate head height (from head top to chin)
+    chin = landmarks_2d[FACIAL_LANDMARKS['chin']]
+    head_height_pixels = math.sqrt((chin[0] - head_top_center[0])**2 + 
+                                  (chin[1] - head_top_center[1])**2)
+    
+    # Store enhanced head measurements
+    measurements['head_top_center'] = head_top_center
+    measurements['head_top_width_pixels'] = head_top_width_pixels
+    measurements['head_height_pixels'] = head_height_pixels
+    measurements['head_width_mm'] = head_top_width_pixels / pixels_per_mm
+    measurements['head_height_mm'] = head_height_pixels / pixels_per_mm
+    
+    print(f"DEBUG: Head region - Top center: {head_top_center}, Width: {head_top_width_pixels:.1f}px, Height: {head_height_pixels:.1f}px")
     
     return measurements
 

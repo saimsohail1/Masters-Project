@@ -102,14 +102,24 @@ def get_hat_accessory(product_id="product_4"):
     """Get hat accessory image based on product ID"""
     # Map product IDs to their image files
     product_images = {
-        'product_4': 'hat.png'  # Polo Hat
+        'product_4': 'hat.png'  # Updated Hat image
     }
     
     image_file = product_images.get(product_id, 'hat.png')  # Default fallback
     image_path = f"accessories/{image_file}"
     
     if os.path.exists(image_path):
-        return cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
+        hat_image = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
+        if hat_image is not None:
+            print(f"DEBUG: Hat image loaded successfully - Shape: {hat_image.shape}, Channels: {hat_image.shape[2] if len(hat_image.shape) > 2 else 'Grayscale'}")
+            # Check if the hat has alpha channel
+            if len(hat_image.shape) == 3 and hat_image.shape[2] == 4:
+                print(f"DEBUG: Hat has alpha channel - RGBA format")
+            else:
+                print(f"DEBUG: WARNING - Hat may not have alpha channel")
+        else:
+            print(f"DEBUG: ERROR - Failed to load hat image from {image_path}")
+        return hat_image
     else:
         print(f"Warning: Hat image file not found: {image_path}")
         return None
@@ -296,9 +306,14 @@ async def single_image_tryon(
                 # For hats, load hat accessories
                 hat_accessory = get_hat_accessory(product_id)
                 if hat_accessory is not None and facial_measurements:
-                    # Placeholder hat placement - you can implement specific hat placement logic here
                     print(f"SINGLE IMAGE: Hat accessory loaded for {product_id}")
+                    # Actually place the hat using the same placement function as glasses
+                    frame, placement_info = place_product_with_measurements(
+                        frame, hat_accessory, facial_measurements, 
+                        product_type, product_dimensions
+                    )
                     product_applied = True
+                    print(f"SINGLE IMAGE: Hat placed successfully")
                     
         except Exception as e:
             print(f"SINGLE IMAGE: Product placement error: {e}")
@@ -425,10 +440,21 @@ async def realtime_tryon_websocket(websocket: WebSocket):
                                         
                                 elif product_type == 'hat':
                                     print(f"REALTIME: Processing hat - type: {product_type}, id: {product_id}")
+                                    if product_type in PRODUCT_DATABASE and product_id in PRODUCT_DATABASE[product_type]:
+                                        product_dimensions = PRODUCT_DATABASE[product_type][product_id]
+                                        print(f"REALTIME: Found hat dimensions: {product_dimensions}")
+                                    else:
+                                        product_dimensions = {}
+                                    
                                     hat_accessory = get_hat_accessory(product_id)
                                     if hat_accessory is not None:
                                         print(f"REALTIME: Hat accessory loaded for {product_id}")
-                                        # Placeholder hat placement logic here
+                                        # Actually place the hat
+                                        frame, _ = place_product_with_measurements(
+                                            frame, hat_accessory, facial_measurements, 
+                                            product_type, product_dimensions
+                                        )
+                                        print(f"REALTIME: Hat placed successfully")
                                         
                             except Exception as e:
                                 print(f"REALTIME: Product placement error: {e}")
@@ -609,7 +635,7 @@ async def tryon_endpoint(
         product_applied = False
         try:
             if product_type == 'glasses':
-                # Get cached glasses accessory
+            # Get cached glasses accessory
                 glasses_accessory = get_glasses_accessory(product_id)
                 
                 if glasses_accessory is not None and facial_measurements:
@@ -624,9 +650,14 @@ async def tryon_endpoint(
                 # For hats, load hat accessories
                 hat_accessory = get_hat_accessory(product_id)
                 if hat_accessory is not None and facial_measurements:
-                    # Placeholder hat placement - you can implement specific hat placement logic here
                     print(f"HIGH-ACCURACY: Hat accessory loaded for {product_id}")
+                    # Actually place the hat using the same placement function as glasses
+                    frame, placement_info = place_product_with_measurements(
+                        frame, hat_accessory, facial_measurements, 
+                        product_type, product_dimensions
+                    )
                     product_applied = True
+                    print(f"HIGH-ACCURACY: Hat placed successfully")
                     
         except Exception as e:
             print(f"HIGH-ACCURACY: Product placement error: {e}")

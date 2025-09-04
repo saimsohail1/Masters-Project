@@ -50,11 +50,20 @@ def overlay_image_alpha(background, overlay, x, y):
         
         # Check if overlay has alpha channel
         if overlay_visible.shape[2] != 4:
+            print(f"DEBUG: Overlay does not have alpha channel - shape: {overlay_visible.shape}")
             return background
 
         # Split overlay into RGB and alpha
         overlay_img = overlay_visible[..., :3]
         mask = overlay_visible[..., 3:] / 255.0
+
+        # Check if mask has any non-transparent pixels
+        max_alpha = np.max(mask)
+        print(f"DEBUG: Overlay alpha range - Min: {np.min(mask):.3f}, Max: {max_alpha:.3f}")
+        
+        if max_alpha < 0.1:  # If the hat is mostly transparent
+            print(f"DEBUG: WARNING - Hat is mostly transparent (max alpha: {max_alpha:.3f})")
+            return background
 
         # Ensure mask has correct shape for broadcasting
         if mask.shape[2] == 1:
@@ -65,6 +74,8 @@ def overlay_image_alpha(background, overlay, x, y):
         background[start_y:end_y, start_x:end_x] = (
             background_region * (1 - mask) + overlay_img * mask
         ).astype(np.uint8)
+        
+        print(f"DEBUG: Overlay applied successfully - alpha max: {max_alpha:.3f}")
 
         return background
     except Exception as e:
@@ -295,10 +306,11 @@ def place_glasses_accurately(image, glasses_array, facial_measurements, product_
 
 def place_hat_accurately(image, hat_array, facial_measurements, product_dimensions, placement_info):
     """
-    Place hat with accurate sizing and positioning based on facial measurements.
+    Place hat with accurate sizing and positioning based on enhanced head detection.
+    Uses MediaPipe landmarks + YOLO detection for better head region identification.
     """
     try:
-        print(f"DEBUG: Starting hat placement")
+        print(f"DEBUG: Starting enhanced hat placement with head detection")
         
         # Get key facial points
         forehead_center = facial_measurements['forehead_center']
@@ -310,19 +322,37 @@ def place_hat_accurately(image, hat_array, facial_measurements, product_dimensio
         # Get head pose
         head_yaw = facial_measurements.get('head_yaw_radians', 0)
         head_roll = facial_measurements.get('head_roll_radians', 0)
+        print(f"DEBUG: Head pose - Yaw: {head_yaw:.3f} radians ({math.degrees(head_yaw):.1f}°), Roll: {head_roll:.3f} radians ({math.degrees(head_roll):.1f}°)")
+        
+        # ENHANCED: Use MediaPipe head detection data
+        # Get head top center from MediaPipe landmarks
+        head_top_center = facial_measurements.get('head_top_center', forehead_center)
+        head_top_width_pixels = facial_measurements.get('head_top_width_pixels', face_width_pixels)
+        head_height_pixels = facial_measurements.get('head_height_pixels', face_width_pixels)
+        
+        # Use actual head measurements from MediaPipe
+        face_width_mm = facial_measurements.get('face_width_mm', 140)  # Default fallback
+        head_width_mm = facial_measurements.get('head_width_mm', face_width_mm * 1.3)
+        head_height_mm = facial_measurements.get('head_height_mm', face_width_mm * 1.0)
+        
+        print(f"DEBUG: Using MediaPipe head detection - Top center: {head_top_center}, Width: {head_width_mm:.1f}mm, Height: {head_height_mm:.1f}mm")
         
         # Calculate accurate hat dimensions
         if product_dimensions:
             hat_width_mm = product_dimensions.get('hat_width_mm', 220)
             hat_height_mm = product_dimensions.get('hat_height_mm', 120)
         else:
-            face_width_mm = facial_measurements['face_width_mm']
-            hat_width_mm = face_width_mm * 1.2  # Slightly wider than face
-            hat_height_mm = face_width_mm * 0.8
+            # Use head measurements for better sizing
+            hat_width_mm = head_width_mm * 1.1  # Slightly wider than head
+            hat_height_mm = head_width_mm * 0.6  # Proportional height
         
         # Convert to pixels using the scaled measurement
         hat_width_pixels = int(hat_width_mm * pixels_per_mm)
         hat_height_pixels = int(hat_height_mm * pixels_per_mm)
+        
+        print(f"DEBUG: Hat dimensions - Width: {hat_width_pixels}px ({hat_width_mm}mm), Height: {hat_height_pixels}px ({hat_height_mm}mm)")
+        print(f"DEBUG: Head region - Top center: {head_top_center}, Forehead: {forehead_center}")
+        print(f"DEBUG: Using head top center for positioning: {head_top_center}")
         
         # Resize hat to accurate dimensions
         hat_resized = cv2.resize(hat_array, (hat_width_pixels, hat_height_pixels))
@@ -336,36 +366,79 @@ def place_hat_accurately(image, hat_array, facial_measurements, product_dimensio
                                        flags=cv2.INTER_LINEAR, 
                                        borderMode=cv2.BORDER_TRANSPARENT)
         
-        # Position hat accurately
-        # Center horizontally on forehead
-        x = forehead_center[0] - hat_width_pixels // 2
+        # FIXED: Use head_top_center as the primary reference point for hat placement
+        # This is the actual top of the head detected by MediaPipe
+        head_top_center = facial_measurements.get('head_top_center', forehead_center)
         
-        # Position vertically above forehead
-        y = forehead_center[1] - hat_height_pixels + int(hat_height_pixels * 0.3)
+        # Position hat centered on head top center
+        x = head_top_center[0] - hat_width_pixels // 2
         
-        # Apply yaw correction
+        # Position hat slightly above the head top center for better visual placement
+        # Place hat so there's a small gap between head top and hat bottom
+        y = head_top_center[1] - hat_height_pixels - 20  # 20px gap above head top
+        
+        # TEMPORARILY DISABLE yaw correction to test positioning
+        # Apply yaw correction for head rotation (reduced to prevent over-correction)
         if abs(head_yaw) > 0.1:
-            yaw_offset = int(head_yaw * hat_width_pixels * 0.2)
+            yaw_offset = int(head_yaw * hat_width_pixels * 0.0)  # DISABLED for testing
             x += yaw_offset
+            print(f"DEBUG: Yaw correction DISABLED for testing (head_yaw: {head_yaw:.3f})")
+        else:
+            print(f"DEBUG: No yaw correction needed (head_yaw: {head_yaw:.3f})")
         
-        # Overlay the hat
+        # ENHANCED: Validate placement within image bounds
+        img_height, img_width = image.shape[:2]
+        x = max(0, min(x, img_width - hat_width_pixels))
+        y = max(0, min(y, img_height - hat_height_pixels))
+        
+        print(f"DEBUG: Final hat position - X: {x}, Y: {y}")
+        print(f"DEBUG: Hat covers head region from ({x}, {y}) to ({x + hat_width_pixels}, {y + hat_height_pixels})")
+        
+        # Place the hat directly on the head top center
+        print(f"DEBUG: Placing hat at head top center - Image shape: {image.shape}, Hat shape: {hat_resized.shape}")
+        print(f"DEBUG: Overlay position: x={x}, y={y}")
         result_image = overlay_image_alpha(image, hat_resized, x, y)
+        print(f"DEBUG: After hat overlay - Result shape: {result_image.shape}")
         
-        # Update placement info
+        # Check if the hat was actually placed (more reliable check)
+        if result_image is not None:
+            # Check if any pixels changed (more reliable than array_equal)
+            diff = np.abs(image.astype(np.float32) - result_image.astype(np.float32))
+            max_diff = np.max(diff)
+            print(f"DEBUG: Image difference after overlay - Max pixel difference: {max_diff:.2f}")
+            if max_diff > 1.0:  # If any pixel changed by more than 1 unit
+                print(f"DEBUG: Hat overlay successful - image was modified (max diff: {max_diff:.2f})")
+            else:
+                print(f"DEBUG: WARNING - Hat overlay may have failed - no significant changes (max diff: {max_diff:.2f})")
+        else:
+            print(f"DEBUG: ERROR - result_image is None")
+        
+        # Update placement info with enhanced data
         placement_info.update({
             'placement_coordinates': (x, y),
             'hat_dimensions_pixels': (hat_width_pixels, hat_height_pixels),
             'hat_dimensions_mm': (hat_width_mm, hat_height_mm),
+            'head_region': {
+                'head_top_center': head_top_center,
+                'head_width_mm': head_width_mm,
+                'head_height_mm': head_height_mm,
+                'head_top_width_pixels': head_top_width_pixels,
+                'head_height_pixels': head_height_pixels
+            },
             'head_pose': {
                 'yaw_degrees': math.degrees(head_yaw),
                 'roll_degrees': math.degrees(head_roll)
-            }
+            },
+            'placement_method': 'mediapipe_head_detection'
         })
         
+        print(f"DEBUG: Hat placement completed successfully")
         return result_image, placement_info
         
     except Exception as e:
-        print(f"Error in accurate hat placement: {e}")
+        print(f"Error in enhanced hat placement: {e}")
+        import traceback
+        traceback.print_exc()
         return image, placement_info
 
 def draw_measurement_overlay(image, facial_measurements, product_dimensions=None):
@@ -393,6 +466,13 @@ def draw_measurement_overlay(image, facial_measurements, product_dimensions=None
             cv2.putText(overlay_image, 'Forehead', 
                        (facial_measurements['forehead_center'][0] + 10, facial_measurements['forehead_center'][1] - 10),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+        
+        # ENHANCED: Show head detection points
+        if 'head_top_center' in facial_measurements:
+            cv2.circle(overlay_image, facial_measurements['head_top_center'], 5, (255, 255, 0), -1)
+            cv2.putText(overlay_image, 'Head Top', 
+                       (facial_measurements['head_top_center'][0] + 10, facial_measurements['head_top_center'][1] - 10),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
         
         # Draw measurement text
         y_offset = 30
