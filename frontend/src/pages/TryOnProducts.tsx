@@ -109,7 +109,7 @@ const TryOnProducts = () => {
 
   const handleTryOn = (productId: string) => {
     console.log(`Starting AR try-on for product ${productId}`);
-    navigate('/tryon-stream');
+    navigate('/three-tier-tryon');
   };
 
   return (
