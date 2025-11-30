@@ -41,14 +41,14 @@ Wrote thesis documentation, experimentation, and evaluation
 
 ## Tech Stacks
 
-###Backend
+### Backend
 FastAPI
 MediaPipe
 YOLOv8
 OpenCV
 WebSockets
 
-###Frontend
+### Frontend
 
 React (Vite)
 Tailwind CSS
@@ -136,16 +136,16 @@ Allow camera access and position yourself in frame
 
 ## API Endpoints
 
-###POST /single-tryon
+### POST /single-tryon
 High-quality single image processing.
 
-###POST /tryon
+### POST /tryon
 High-accuracy continuous mode.
 
-###WebSocket /websocket-tryon
+### WebSocket /websocket-tryon
 Real-time try-on.
 
-###GET /debug
+### GET /debug
 Health check.
 
 ## Technical Details
