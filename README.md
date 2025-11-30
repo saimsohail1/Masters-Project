@@ -85,7 +85,7 @@ frontend/
 └── package.json                 # Node.js dependencies
 ```
 
-##Getting Started
+## Getting Started
 
 ### Prerequisites
 - Python 3.9+
