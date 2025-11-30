@@ -1,31 +1,58 @@
 # AR Try-On System
 
-A sophisticated Augmented Reality (AR) virtual try-on system that allows users to try on accessories in real-time using advanced computer vision techniques. The system features three different try-on modes optimized for different use cases, from high-quality single shots to real-time streaming.
+This project was developed as part of my MSc Computer Science thesis, where I explored how modern computer-vision techniques can power real-time virtual try-on experiences. The system uses facial landmark detection, head pose estimation, and dimensional scaling to realistically overlay accessories such as glasses and hats on a user's face in real time.
+The goal of the project was to design a modular and practical AR pipeline that could support multiple try-on modes, from high-quality single-shot processing to low-latency continuous WebSocket streams.
+
+## My Role
+
+I worked end-to-end on the research, engineering, and integration:
+Designed the three-tier try-on architecture (Single, Real-Time, High-Accuracy)
+Developed the FastAPI backend (MediaPipe + YOLO + 3D head pose)
+Implemented facial measurements (IPD, face width, mm scaling)
+Built the React/Vite frontend with WebRTC live camera feed
+Integrated product catalog with real-world dimensions (mm)
+Tuned performance for real-time streaming and CPU constraints
+Wrote thesis documentation, experimentation, and evaluation
 
 ## Features
 
 ### Three-Tier Try-On System
-- **Single Image Try-On**: Maximum quality for screenshots and evaluation
-- **Real-Time Stream**: WebSocket-based fast streaming for live interaction  
-- **High-Accuracy Stream**: Balanced approach for continuous try-on experience
+- **Single Image Try-On**: highest quality, used for captures and evaluation
+- **Real-Time Stream (WebSocket)**: optimized for speed and smooth interaction  
+- **High-Accuracy Stream**: balanced approach for continuous try-on experience
 
-### Advanced Computer Vision
-- **MediaPipe Face Mesh**: 478+ facial landmarks for precise positioning
-- **YOLO Object Detection**: Enhanced face detection and validation
-- **3D Head Pose Estimation**: Yaw, pitch, and roll correction for realistic placement
-- **Dimensional Accuracy**: Real-world measurements using facial reference points
+### Computer Vision Features
+- 478+ landmark tracking using MediaPipe Face Mesh
+- Face validation using YOLO object detection
+- 3D head pose estimation (yaw, pitch, roll)
+- Real-world scaling using facial measurement reference points
+- Alpha blending and boundary-safe overlay placement
 
 ### Product Catalog
-- **Glasses**: 3 different styles (Classic Aviator, Raider Sunglasses, Winter Sport)
-- **Hats**: Polo hat with adjustable fit
-- **Accurate Sizing**: Real-world dimensions (mm) for realistic appearance
+- Glasses: Classic Aviator, Raider Sunglasses, Winter Sports
+- Hat: Adjustable Polo Hat
+- All product models include millimeter-accurate dimensions
 
 ### Modern UI/UX
-- **React Frontend**: Modern, responsive interface with Tailwind CSS
-- **Real-time Camera**: WebRTC integration for live video capture
-- **Interactive Controls**: Product selection, measurement overlays, and system switching
+- React + Vite
+- Tailwind CSS
+- WebRTC integration for real-time camera feed
+- Product selection, measurement overlays, and mode switching
 
-## Architecture
+## Tech Stacks
+
+###Backend
+FastAPI
+MediaPipe
+YOLOv8
+OpenCV
+WebSockets
+
+###Frontend
+
+React (Vite)
+Tailwind CSS
+WebRTC
 
 ### Backend (Python/FastAPI)
 ```
@@ -58,7 +85,7 @@ frontend/
 └── package.json                 # Node.js dependencies
 ```
 
-## Quick Start
+##Getting Started
 
 ### Prerequisites
 - Python 3.9+
@@ -67,48 +94,26 @@ frontend/
 
 ### Backend Setup
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd ar-tryon-api
-   ```
+git clone <repo-url>
+cd ar-tryon-api
 
-2. **Create virtual environment**
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
+python -m venv .venv
+source .venv/bin/activate    # Windows: .venv\Scripts\activate
 
-3. **Install dependencies**
-   ```bash
-   cd backend
-   pip install -r requirements.txt
-   pip install 'uvicorn[standard]' websockets  # For WebSocket support
-   ```
+cd backend
+pip install -r requirements.txt
+pip install "uvicorn[standard]" websockets
 
-4. **Start the server**
-   ```bash
-   uvicorn api.main:app --host 0.0.0.0 --port 8001 --reload
-   ```
+uvicorn api.main:app --host 0.0.0.0 --port 8001 --reload
+
 
 ### Frontend Setup
 
-1. **Install dependencies**
-   ```bash
-   cd frontend
-   npm install
-   ```
+cd frontend
+npm install
+npm run dev
 
-2. **Start development server**
-   ```bash
-   npm run dev
-   ```
-
-3. **Access the application**
-   - Open http://localhost:5173 in your browser
-   - Navigate to "Three-Tier Try-On" for the main experience
-
-## Usage
+## How to Use
 
 ### 1. Select Try-On System
 Choose from three optimized systems:
@@ -131,83 +136,38 @@ Allow camera access and position yourself in frame
 
 ## API Endpoints
 
-### Core Endpoints
-- `POST /single-tryon` - Single image try-on with maximum quality
-- `POST /tryon` - High-accuracy streaming try-on
-- `WebSocket /websocket-tryon` - Real-time streaming try-on
-- `GET /debug` - System status and health check
+###POST /single-tryon
+High-quality single image processing.
 
-### Request Format
-```json
-{
-  "product_type": "glasses|hat",
-  "product_id": "product_1|product_2|product_3|product_4",
-  "show_measurements": true|false,
-  "file": "image_file"
-}
-```
+###POST /tryon
+High-accuracy continuous mode.
 
-### Response Format
-```json
-{
-  "success": true,
-  "processed_image": "base64_encoded_image",
-  "measurements": {
-    "ipd_pixels": 40.5,
-    "face_width_mm": 140.2,
-    "head_yaw_degrees": 2.3
-  }
-}
-```
+###WebSocket /websocket-tryon
+Real-time try-on.
+
+###GET /debug
+Health check.
 
 ## Technical Details
 
 ### Computer Vision Pipeline
 
-1. **Face Detection**
-   - MediaPipe Face Mesh for 478+ landmarks
-   - YOLO validation for enhanced accuracy
-   - 3D pose estimation (yaw, pitch, roll)
+1. ### Face Detection
+MediaPipe Face Mesh (478 landmarks)
+YOLO object detector for validation
+3D pose estimation: yaw, pitch, roll
 
-2. **Facial Measurements**
-   - Inter-pupillary distance (IPD) calculation
-   - Face width and height measurements
-   - Head top center detection for hat placement
-   - Pixels-per-millimeter scaling for real-world accuracy
+2. ### Measurements
+IPD (inter-pupillary distance)
+Face width (mm)
+Scaling from pixels to millimeters
 
-3. **Product Placement**
-   - Dimensional scaling based on facial measurements
-   - Head pose correction for realistic appearance
-   - Alpha blending for seamless overlay
-   - Boundary checking and clipping
+3. ### Accessory Placement
+Dimensional scaling
+Pose-aware alignment
+Alpha blending
+Boundary clipping
 
-### Product Database
-```python
-PRODUCT_DATABASE = {
-    'glasses': {
-        'product_1': {
-            'name': 'Classic Aviator',
-            'frame_width_mm': 135,
-            'frame_height_mm': 50,
-            'lens_width_mm': 58,
-            'lens_height_mm': 40,
-            'bridge_width_mm': 18,
-            'temple_length_mm': 140,
-            'fit_type': 'standard'
-        }
-        # ... more products
-    },
-    'hat': {
-        'product_4': {
-            'name': 'Polo Hat',
-            'hat_width_mm': 220,
-            'hat_height_mm': 120,
-            'head_circumference_mm': 580,
-            'fit_type': 'adjustable'
-        }
-    }
-}
-```
 
 ## Performance Optimization
 
@@ -229,76 +189,30 @@ PRODUCT_DATABASE = {
 - **Processing**: Balanced MediaPipe + YOLO
 - **Use Case**: Continuous try-on with good accuracy
 
-## Troubleshooting
+### Troubleshooting
 
-### Common Issues
+#### WebSocket issues 
+pip install "uvicorn[standard]" websockets
 
-1. **WebSocket Connection Failed**
-   ```bash
-   pip install 'uvicorn[standard]' websockets
-   ```
+#### Camera not detected
+Use HTTPS or localhost
+Check browser permissions
 
-2. **Camera Not Working**
-   - Ensure HTTPS or localhost
-   - Check browser permissions
-   - Verify camera is not in use by other applications
-
-3. **Poor Detection Quality**
-   - Ensure good lighting
-   - Position face clearly in frame
-   - Avoid extreme angles or distances
-
-4. **Server Not Starting**
-   ```bash
-   pkill -f uvicorn  # Kill existing processes
-   uvicorn api.main:app --host 0.0.0.0 --port 8001 --reload
-   ```
-
-### Debug Mode
-Enable measurement overlays to see facial landmarks and detection results:
-```javascript
-// In frontend
-setShowMeasurements(true);
-```
-
-## System Requirements
-
-### Minimum Requirements
-- **CPU**: 4 cores, 2.5GHz
-- **RAM**: 8GB
-- **GPU**: Integrated graphics (CPU processing)
-- **Storage**: 2GB free space
-
-### Recommended Requirements
-- **CPU**: 8 cores, 3.0GHz+
-- **RAM**: 16GB+
-- **GPU**: Dedicated GPU with CUDA support
-- **Storage**: 5GB+ free space
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+#### Low accuracy
+Ensure good lighting
+Keep face centered
+Avoid extreme angles
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License – see LICENSE file. 
 
 ## Acknowledgments
 
-- **MediaPipe** by Google for facial landmark detection
-- **YOLO** by Ultralytics for object detection
-- **FastAPI** for the high-performance backend
-- **React** and **Vite** for the modern frontend
-- **Tailwind CSS** for beautiful styling
+Google MediaPipe
+Ultralytics YOLO
+FastAPI community
+React + Vite ecosystem
 
-## Support
-
-For support, email your-email@example.com or create an issue in the repository.
 
 ---
-
-**Built with cutting-edge computer vision and modern web technologies**
