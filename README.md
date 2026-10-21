@@ -1,218 +1,106 @@
-# AR Try-On System
+# AR Virtual Try-On System (MSc Thesis)
 
-This project was developed as part of my MSc Computer Science thesis, where I explored how modern computer-vision techniques can power real-time virtual try-on experiences. The system uses facial landmark detection, head pose estimation, and dimensional scaling to realistically overlay accessories such as glasses and hats on a user's face in real time.
-The goal of the project was to design a modular and practical AR pipeline that could support multiple try-on modes, from high-quality single-shot processing to low-latency continuous WebSocket streams.
+A real-time augmented-reality try-on system that overlays accessories such as glasses and hats on a user's face through the browser. Built for my MSc in Computer Science at Atlantic Technological University, it combines facial landmark tracking, 3D head-pose estimation and real-world (millimetre) scaling so accessories sit at a realistic size and angle.
+
+The full dissertation is included: [Masters_dissertation___Saim_Sohail.pdf](Masters_dissertation___Saim_Sohail.pdf). Notes on measurement accuracy are in [DIMENSIONAL_ACCURACY.md](DIMENSIONAL_ACCURACY.md).
 
 ## My Role
 
-I worked end-to-end on the research, engineering, and integration:
-Designed the three-tier try-on architecture (Single, Real-Time, High-Accuracy)
-Developed the FastAPI backend (MediaPipe + YOLO + 3D head pose)
-Implemented facial measurements (IPD, face width, mm scaling)
-Built the React/Vite frontend with WebRTC live camera feed
-Integrated product catalog with real-world dimensions (mm)
-Tuned performance for real-time streaming and CPU constraints
-Wrote thesis documentation, experimentation, and evaluation
+I worked on the project end to end, from research through engineering and evaluation:
 
-## Features
+- Designed the three-tier try-on architecture (Single Image, Real-Time, High-Accuracy)
+- Built the FastAPI backend (MediaPipe, YOLO and 3D head-pose estimation)
+- Implemented facial measurements (inter-pupillary distance, face width, pixel-to-mm scaling)
+- Built the React/Vite frontend with a live WebRTC camera feed
+- Integrated a product catalogue with real-world dimensions in millimetres
+- Tuned performance for real-time streaming on CPU-only hardware
+- Wrote the thesis, experiments and evaluation
 
-### Three-Tier Try-On System
-- **Single Image Try-On**: highest quality, used for captures and evaluation
-- **Real-Time Stream (WebSocket)**: optimized for speed and smooth interaction  
-- **High-Accuracy Stream**: balanced approach for continuous try-on experience
+## How It Works
 
-### Computer Vision Features
-- 478+ landmark tracking using MediaPipe Face Mesh
-- Face validation using YOLO object detection
-- 3D head pose estimation (yaw, pitch, roll)
-- Real-world scaling using facial measurement reference points
-- Alpha blending and boundary-safe overlay placement
+```
+Browser (React + Vite, WebRTC camera)
+     |  HTTP (single image)  /  WebSocket (live stream)
+     v
+FastAPI backend
+  1. Face detection   – MediaPipe Face Mesh (478 landmarks), YOLO for validation
+  2. Head pose        – yaw, pitch and roll estimated in 3D
+  3. Measurements     – IPD and face width converted from pixels to millimetres
+  4. Placement        – accessory scaled, rotated to the head pose, alpha-blended
+     |
+     v
+Rendered frame returned to the browser
+```
 
-### Product Catalog
-- Glasses: Classic Aviator, Raider Sunglasses, Winter Sports
-- Hat: Adjustable Polo Hat
-- All product models include millimeter-accurate dimensions
+### Three try-on modes
 
-### Modern UI/UX
-- React + Vite
-- Tailwind CSS
-- WebRTC integration for real-time camera feed
-- Product selection, measurement overlays, and mode switching
+| Mode | Transport | Resolution | Best for |
+|---|---|---|---|
+| Single Image | HTTP `POST /single-tryon` | 640px | Highest quality captures and evaluation |
+| Real-Time | WebSocket `/websocket-tryon` | 256px | Smooth live interaction |
+| High-Accuracy | HTTP `POST /tryon` | 320px | Continuous try-on with better accuracy |
 
-## Tech Stacks
+`GET /debug` is a simple health check.
 
-### Backend
-FastAPI
-MediaPipe
-YOLOv8
-OpenCV
-WebSockets
+## Tech Stack
 
-### Frontend
+- **Backend:** Python, FastAPI, WebSockets, MediaPipe, YOLOv8, OpenCV
+- **Frontend:** React (Vite), Tailwind CSS, WebRTC
 
-React (Vite)
-Tailwind CSS
-WebRTC
+## Project Structure
 
-### Backend (Python/FastAPI)
 ```
 backend/
 ├── api/
-│   ├── main.py                 # FastAPI application entry point
-│   ├── routes/
-│   │   └── tryon.py           # API endpoints for try-on functionality
+│   ├── main.py                 # FastAPI entry point
+│   ├── routes/tryon.py         # Try-on endpoints
 │   ├── services/
-│   │   ├── mediapipe_service.py  # MediaPipe face detection & measurements
-│   │   └── yolo_service.py       # YOLO object detection
-│   └── utils/
-│       └── file_utils.py         # Image processing & overlay utilities
-├── accessories/               # Product images (glasses, hats)
-└── requirements.txt          # Python dependencies
-```
+│   │   ├── mediapipe_service.py  # Face detection and measurements
+│   │   └── yolo_service.py       # YOLO validation
+│   └── utils/file_utils.py     # Image processing and overlay
+├── accessories/                # Product images
+└── requirements.txt
 
-### Frontend (React/Vite)
-```
 frontend/
 ├── src/
-│   ├── components/
-│   │   ├── ThreeTierTryOn.jsx    # Main try-on component
-│   │   ├── VirtualTryOn.jsx      # Legacy try-on component
-│   │   └── TryOnStream.jsx       # Streaming component
-│   ├── pages/
-│   │   ├── Home.tsx              # Landing page
-│   │   └── TryOnProducts.tsx     # Product showcase
-│   └── App.jsx                   # Main application component
-└── package.json                 # Node.js dependencies
+│   ├── components/             # ThreeTierTryOn, TryOnStream, VirtualTryOn
+│   ├── pages/                  # Home, TryOnProducts
+│   └── App.jsx
+└── package.json
 ```
 
 ## Getting Started
 
-### Prerequisites
-- Python 3.9+
-- Node.js 16+
-- Webcam/Camera access
+**Prerequisites:** Python 3.9+, Node.js 16+, a webcam.
 
-### Backend Setup
+### Backend
 
-git clone <repo-url>
-cd ar-tryon-api
-
+```bash
+git clone https://github.com/saimsohail1/Masters-Project.git
+cd Masters-Project/backend
 python -m venv .venv
-source .venv/bin/activate    # Windows: .venv\Scripts\activate
-
-cd backend
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 pip install "uvicorn[standard]" websockets
-
 uvicorn api.main:app --host 0.0.0.0 --port 8001 --reload
+```
 
+### Frontend
 
-### Frontend Setup
-
-cd frontend
+```bash
+cd Masters-Project/frontend
 npm install
 npm run dev
+```
 
-## How to Use
+Open the app, allow camera access, pick a product (Classic Aviator, Raider Sunglasses, Winter Sport Glasses or Polo Hat) and choose a mode.
 
-### 1. Select Try-On System
-Choose from three optimized systems:
-- **Single Image**: Best quality, slower processing
-- **Real-Time**: Fast streaming, adaptive quality
-- **High-Accuracy**: Balanced performance and quality
+## Troubleshooting
 
-### 2. Choose Product
-Select from available products:
-- **Glasses**: Classic Aviator, Raider Sunglasses, Winter Sport Glasses
-- **Hats**: Polo Hat
+- **WebSocket errors:** make sure `uvicorn[standard]` and `websockets` are installed.
+- **Camera not detected:** use `localhost` or HTTPS, and check browser permissions.
+- **Low accuracy:** use good lighting, keep your face centred and avoid extreme angles.
 
-### 3. Enable Camera
-Allow camera access and position yourself in frame
+## Acknowledgements
 
-### 4. Try-On Experience
-- **Single Image**: Click "Capture & Try-On" for high-quality result
-- **Real-Time**: Click "Start Stream" for continuous try-on
-- **High-Accuracy**: Click "Start Stream" for balanced experience
-
-## API Endpoints
-
-### POST /single-tryon
-High-quality single image processing.
-
-### POST /tryon
-High-accuracy continuous mode.
-
-### WebSocket /websocket-tryon
-Real-time try-on.
-
-### GET /debug
-Health check.
-
-## Technical Details
-
-### Computer Vision Pipeline
-
-1. ### Face Detection
-MediaPipe Face Mesh (478 landmarks)
-YOLO object detector for validation
-3D pose estimation: yaw, pitch, roll
-
-2. ### Measurements
-IPD (inter-pupillary distance)
-Face width (mm)
-Scaling from pixels to millimeters
-
-3. ### Accessory Placement
-Dimensional scaling
-Pose-aware alignment
-Alpha blending
-Boundary clipping
-
-
-## Performance Optimization
-
-### Single Image Mode
-- **Target Resolution**: 640px
-- **Quality**: 95%
-- **Processing**: Full MediaPipe + YOLO pipeline
-- **Use Case**: Screenshots, product evaluation
-
-### Real-Time Mode
-- **Target Resolution**: 256px
-- **Quality**: 70%
-- **Processing**: Optimized pipeline with caching
-- **Use Case**: Live interaction, continuous try-on
-
-### High-Accuracy Mode
-- **Target Resolution**: 320px
-- **Quality**: 60%
-- **Processing**: Balanced MediaPipe + YOLO
-- **Use Case**: Continuous try-on with good accuracy
-
-### Troubleshooting
-
-#### WebSocket issues 
-pip install "uvicorn[standard]" websockets
-
-#### Camera not detected
-Use HTTPS or localhost
-Check browser permissions
-
-#### Low accuracy
-Ensure good lighting
-Keep face centered
-Avoid extreme angles
-
-## License
-
-MIT License – see LICENSE file. 
-
-## Acknowledgments
-
-Google MediaPipe
-Ultralytics YOLO
-FastAPI community
-React + Vite ecosystem
-
-
----
+Google MediaPipe, Ultralytics YOLO, FastAPI, and the React + Vite ecosystem.
